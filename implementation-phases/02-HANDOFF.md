@@ -1,7 +1,7 @@
 # Run handoff — 02 Deterministic SVG renderer
 
 **Run file:** `implementation-phases/02-svg-renderer.md`
-**Status:** complete locally; hosted CI not yet recorded (orchestrator will push after this handoff).
+**Status:** complete locally and on hosted CI (`c08ea37`, run `36183166119`).
 **Next run:** `03-supabase-persistence.md`
 
 ## Delivered
@@ -25,6 +25,7 @@
 | `PYTHONPATH=packages/pipeline .venv/bin/python -m isometric_pipeline.render.golden --check` | Pass | Byte-identical SVG goldens; PNG within channel tolerance 2. |
 | `./scripts/test-pipeline` | Pass | **167** pipeline tests (render, safety, preview, symbols, scene contract). |
 | Evaluation / web | Pass | **6** evaluation tests, **1** web test (via `./scripts/check`). |
+| Hosted CI (GitHub Actions `Check`) | Pass | Run [`36183166119`](https://github.com/moizk678/isometric/actions/runs/36183166119) on commit `c08ea37c032279deaed3ca1d7fc5b4982a6e633b` (ubuntu-latest); `./scripts/check` including golden `--check`. |
 | Run 02 exit checks (`02-svg-renderer.md`) | Pass | All valid fixtures render, `validate_svg`, and rasterize; deterministic checksums; disconnected crossing; no duplicate fitting at structural junctions; text metacharacters escaped; per-object SVG groups. |
 
 ## Data used
@@ -33,7 +34,6 @@
 
 ## Remaining work and risks
 
-- **Hosted CI:** this run’s commit is not yet recorded on `origin/main`; confirm the Check workflow after push.
 - **Run 03:** persistence, artifact URLs, and preview delivery in the API/worker are still out of scope for Run 02.
 - Synthetic goldens do not prove extraction or recognition quality on real sketches (Run 17).
 
