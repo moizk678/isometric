@@ -15,15 +15,34 @@ class ApiError(Exception):
         super().__init__(message)
 
 
+def envelope_response(
+    request: Request,
+    *,
+    status_code: int,
+    code: str,
+    message: str,
+    request_id: str | None = None,
+) -> JSONResponse:
+    rid = request_id or getattr(request.state, "request_id", str(uuid.uuid4()))
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "code": code,
+            "message": message,
+            "request_id": rid,
+        },
+        headers={"X-Request-Id": rid},
+    )
+
+
 def error_response(
     request: Request, exc: ApiError, *, request_id: str | None = None
 ) -> JSONResponse:
     rid = request_id or getattr(request.state, "request_id", str(uuid.uuid4()))
-    return JSONResponse(
+    return envelope_response(
+        request,
         status_code=exc.status_code,
-        content={
-            "code": exc.code,
-            "message": str(exc),
-            "request_id": rid,
-        },
+        code=exc.code,
+        message=str(exc),
+        request_id=rid,
     )

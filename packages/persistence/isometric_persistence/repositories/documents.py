@@ -22,6 +22,8 @@ class DocumentRow:
     source_width_px: int | None = None
     source_height_px: int | None = None
     created_at: object | None = None
+    original_filename: str | None = None
+    profile_id: str | None = None
 
 
 class DocumentRepository:
@@ -38,20 +40,24 @@ class DocumentRepository:
         upload_options_hash: str | None = None,
         source_width_px: int | None = None,
         source_height_px: int | None = None,
+        original_filename: str | None = None,
+        profile_id: str | None = None,
     ) -> DocumentRow:
         row = conn.execute(
             """
             INSERT INTO drawing.documents (
               id, owner_id, source_hash, source_uri, source_mime,
               upload_idempotency_key, upload_options_hash,
-              source_width_px, source_height_px
+              source_width_px, source_height_px,
+              original_filename, profile_id
             )
             VALUES (
-              COALESCE(%s, gen_random_uuid()), %s, %s, %s, %s, %s, %s, %s, %s
+              COALESCE(%s, gen_random_uuid()), %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
             )
             RETURNING id, owner_id, source_hash, source_uri, source_mime,
                       current_revision_id, upload_idempotency_key, upload_options_hash,
-                      source_width_px, source_height_px, created_at
+                      source_width_px, source_height_px, created_at,
+                      original_filename, profile_id
             """,
             (
                 document_id,
@@ -63,6 +69,8 @@ class DocumentRepository:
                 upload_options_hash,
                 source_width_px,
                 source_height_px,
+                original_filename,
+                profile_id,
             ),
         ).fetchone()
         assert row is not None
@@ -73,7 +81,8 @@ class DocumentRepository:
             """
             SELECT id, owner_id, source_hash, source_uri, source_mime, current_revision_id,
                    upload_idempotency_key, upload_options_hash,
-                   source_width_px, source_height_px, created_at
+                   source_width_px, source_height_px, created_at,
+                   original_filename, profile_id
             FROM drawing.documents
             WHERE id = %s
             """,
@@ -88,7 +97,8 @@ class DocumentRepository:
             """
             SELECT id, owner_id, source_hash, source_uri, source_mime, current_revision_id,
                    upload_idempotency_key, upload_options_hash,
-                   source_width_px, source_height_px, created_at
+                   source_width_px, source_height_px, created_at,
+                   original_filename, profile_id
             FROM drawing.documents
             WHERE owner_id = %s AND upload_idempotency_key = %s
             """,
@@ -108,7 +118,8 @@ class DocumentRepository:
             """
             SELECT id, owner_id, source_hash, source_uri, source_mime, current_revision_id,
                    upload_idempotency_key, upload_options_hash,
-                   source_width_px, source_height_px, created_at
+                   source_width_px, source_height_px, created_at,
+                   original_filename, profile_id
             FROM drawing.documents
             WHERE owner_id = %s
             ORDER BY created_at DESC
@@ -132,4 +143,6 @@ def _row_to_document(row: dict[str, Any]) -> DocumentRow:
         source_width_px=row.get("source_width_px"),
         source_height_px=row.get("source_height_px"),
         created_at=row.get("created_at"),
+        original_filename=row.get("original_filename"),
+        profile_id=row.get("profile_id"),
     )

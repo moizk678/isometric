@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+if [[ -z "${LOCAL_DATABASE_URL:-}" ]]; then
+  echo "LOCAL_DATABASE_URL is required for export-openapi" >&2
+  exit 1
+fi
+
+export PYTHONPATH="services/api:services/worker:packages/pipeline:packages/persistence"
+.venv/bin/python - <<'PY'
+import json
+from pathlib import Path
+
+from isometric_api.app import create_app
+
+app = create_app()
+path = Path("services/api/openapi.json")
+path.write_text(json.dumps(app.openapi(), indent=2) + "\n", encoding="utf-8")
+print(f"Wrote {path}")
+PY

@@ -7,6 +7,7 @@
     "node": "26.0.0"
   },
   "scripts": {
-    "test:web": "pnpm --filter @isometric/web test"
+    "test:web": "pnpm --filter @isometric/web test",
+    "gen:api": "pnpm --filter @isometric/web gen:api"
   }
 }

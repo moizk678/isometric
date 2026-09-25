@@ -25,6 +25,7 @@ class JobRow:
     result_revision_id: uuid.UUID | None
     error_code: str | None
     cancel_requested: bool
+    updated_at: object | None = None
 
 
 class JobRepository:
@@ -79,7 +80,7 @@ class JobRepository:
             """
             SELECT id, document_id, state, stage, attempt, input_hash, options_hash,
                    pipeline_version, profile_version, result_revision_id, error_code,
-                   cancel_requested
+                   cancel_requested, updated_at
             FROM drawing.jobs
             WHERE id = %s
             """,
@@ -94,7 +95,7 @@ class JobRepository:
             """
             SELECT id, document_id, state, stage, attempt, input_hash, options_hash,
                    pipeline_version, profile_version, result_revision_id, error_code,
-                   cancel_requested
+                   cancel_requested, updated_at
             FROM drawing.jobs
             WHERE document_id = %s
             ORDER BY created_at ASC
@@ -318,4 +319,5 @@ def _row_to_job(row: dict[str, Any]) -> JobRow:
         result_revision_id=row["result_revision_id"],
         error_code=row["error_code"],
         cancel_requested=row["cancel_requested"],
+        updated_at=row.get("updated_at"),
     )

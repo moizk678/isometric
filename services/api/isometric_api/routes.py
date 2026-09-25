@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import io
 import json
 import os
 import uuid
@@ -16,10 +17,12 @@ from isometric_persistence.repositories.jobs import JobRepository
 from isometric_persistence.repositories.revisions import RevisionRepository
 from isometric_worker.dispatcher import dispatch_outbox
 from isometric_worker.runner import run_once
+from PIL import Image, ImageOps
+from psycopg.errors import UniqueViolation
 
 from .deps import AppState, get_owner_id, get_state
 from .errors import ApiError
-from .upload import validate_upload
+from .upload import sanitize_original_filename, validate_upload
 
 router = APIRouter(prefix="/api/v1")
 
@@ -56,6 +59,55 @@ def _review_state_for_revision(
     return revs.get_review_state(conn, revision_id)
 
 
+def _review_item_count(
+    conn: Any, revs: RevisionRepository, revision_id: uuid.UUID | None
+) -> int:
+    if revision_id is None:
+        return 0
+    return len(revs.list_review_items(conn, revision_id))
+
+
+def _document_json_fields(doc: Any) -> dict[str, Any]:
+    return {
+        "original_filename": doc.original_filename,
+        "profile_id": doc.profile_id,
+    }
+
+
+def _idempotent_upload_response(
+    conn: Any,
+    *,
+    docs: DocumentRepository,
+    jobs: JobRepository,
+    existing: Any,
+    validated: Any,
+) -> dict[str, Any]:
+    if (
+        existing.source_hash != validated.source_hash
+        or existing.upload_options_hash != validated.options_hash
+    ):
+        raise ApiError(
+            409,
+            "idempotency_conflict",
+            "idempotency key was reused with different payload",
+        )
+    job = jobs.get_for_document(conn, existing.id)
+    return {
+        "document_id": str(existing.id),
+        "job_id": str(job.id) if job else None,
+        "status": job.state if job else "queued",
+    }
+
+
+def _job_updated_at_iso(job: Any) -> str | None:
+    updated = job.updated_at
+    if updated is None:
+        return None
+    if hasattr(updated, "isoformat"):
+        return updated.isoformat()
+    return str(updated)
+
+
 @router.post("/documents", status_code=202)
 async def create_document(
     request: Request,
@@ -87,6 +139,7 @@ async def create_document(
         max_bytes=state.settings.max_upload_bytes,
         max_pixels=state.settings.max_pixels,
     )
+    original_filename = sanitize_original_filename(file.filename)
 
     docs = DocumentRepository()
     jobs = JobRepository()
@@ -96,51 +149,66 @@ async def create_document(
                 conn, owner_id=owner_id, idempotency_key=idempotency_key
             )
             if existing is not None:
-                if (
-                    existing.source_hash != validated.source_hash
-                    or existing.upload_options_hash != validated.options_hash
-                ):
-                    raise ApiError(
-                        409,
-                        "idempotency_conflict",
-                        "idempotency key was reused with different payload",
-                    )
-                job = jobs.get_for_document(conn, existing.id)
+                payload = _idempotent_upload_response(
+                    conn,
+                    docs=docs,
+                    jobs=jobs,
+                    existing=existing,
+                    validated=validated,
+                )
                 conn.commit()
                 _maybe_run_worker(request)
-                return {
-                    "document_id": str(existing.id),
-                    "job_id": str(job.id) if job else None,
-                    "status": job.state if job else "queued",
-                }
+                return payload
 
         document_id = uuid.uuid4()
         job_id = uuid.uuid4()
         original_key = document_original_key(document_id)
         state.store.write_immutable(original_key, validated.data)
-        docs.create(
-            conn,
-            document_id=document_id,
-            owner_id=owner_id,
-            source_hash=validated.source_hash,
-            source_uri=original_key,
-            source_mime=validated.mime,
-            upload_idempotency_key=idempotency_key,
-            upload_options_hash=validated.options_hash,
-            source_width_px=validated.width_px,
-            source_height_px=validated.height_px,
-        )
-        jobs.create_with_outbox(
-            conn,
-            job_id=job_id,
-            document_id=document_id,
-            state="queued",
-            input_hash=validated.source_hash,
-            options_hash=validated.options_hash,
-            pipeline_version=state.settings.pipeline_version,
-            profile_version=profile_id,
-            event_key=f"job.created.{job_id}",
-        )
+        try:
+            docs.create(
+                conn,
+                document_id=document_id,
+                owner_id=owner_id,
+                source_hash=validated.source_hash,
+                source_uri=original_key,
+                source_mime=validated.mime,
+                upload_idempotency_key=idempotency_key,
+                upload_options_hash=validated.options_hash,
+                source_width_px=validated.width_px,
+                source_height_px=validated.height_px,
+                original_filename=original_filename,
+                profile_id=profile_id,
+            )
+            jobs.create_with_outbox(
+                conn,
+                job_id=job_id,
+                document_id=document_id,
+                state="queued",
+                input_hash=validated.source_hash,
+                options_hash=validated.options_hash,
+                pipeline_version=state.settings.pipeline_version,
+                profile_version=profile_id,
+                event_key=f"job.created.{job_id}",
+            )
+        except UniqueViolation:
+            conn.rollback()
+            if not idempotency_key:
+                raise
+            existing = docs.find_by_idempotency(
+                conn, owner_id=owner_id, idempotency_key=idempotency_key
+            )
+            if existing is None:
+                raise
+            payload = _idempotent_upload_response(
+                conn,
+                docs=docs,
+                jobs=jobs,
+                existing=existing,
+                validated=validated,
+            )
+            conn.commit()
+            _maybe_run_worker(request)
+            return payload
         conn.commit()
 
     _maybe_run_worker(request)
@@ -175,6 +243,7 @@ def list_documents(
                     "review_state": _review_state_for_revision(
                         conn, revs, doc.current_revision_id
                     ),
+                    **_document_json_fields(doc),
                     "latest_job": {
                         "id": str(job.id),
                         "state": job.state,
@@ -211,6 +280,7 @@ def get_document(request: Request, document_id: uuid.UUID) -> dict[str, Any]:
         if doc.current_revision_id
         else None,
         "review_state": review_state,
+        **_document_json_fields(doc),
         "latest_job": {
             "id": str(job.id),
             "state": job.state,
@@ -236,6 +306,26 @@ def get_document_source(request: Request, document_id: uuid.UUID) -> Response:
         _ensure_owner(doc.owner_id, owner_id)
     data = _read_artifact(state, doc.source_uri)
     return Response(content=data, media_type=doc.source_mime)
+
+
+@router.get("/documents/{document_id}/display")
+def get_document_display(request: Request, document_id: uuid.UUID) -> Response:
+    owner_id = get_owner_id(request)
+    state = get_state(request)
+    docs = DocumentRepository()
+    with state.pool.connection() as conn:
+        doc = docs.get(conn, document_id)
+        if doc is None:
+            raise ApiError(404, "not_found", "document not found")
+        _ensure_owner(doc.owner_id, owner_id)
+    data = _read_artifact(state, doc.source_uri)
+    with Image.open(io.BytesIO(data)) as image:
+        transposed = ImageOps.exif_transpose(image)
+        if transposed is None:
+            transposed = image
+        out = io.BytesIO()
+        transposed.save(out, format="PNG")
+    return Response(content=out.getvalue(), media_type="image/png")
 
 
 @router.get("/documents/{document_id}/revisions")
@@ -364,6 +454,7 @@ def get_job(request: Request, job_id: uuid.UUID) -> dict[str, Any]:
         _ensure_owner(doc.owner_id, owner_id)
         warnings = jobs.get_latest_stage_warnings(conn, job_id)
         review_state = _review_state_for_revision(conn, revs, job.result_revision_id)
+        review_item_count = _review_item_count(conn, revs, job.result_revision_id)
     return {
         "job_id": str(job.id),
         "document_id": str(job.document_id),
@@ -378,6 +469,8 @@ def get_job(request: Request, job_id: uuid.UUID) -> dict[str, Any]:
         if job.result_revision_id
         else None,
         "cancel_requested": job.cancel_requested,
+        "updated_at": _job_updated_at_iso(job),
+        "review_item_count": review_item_count,
     }
 
 

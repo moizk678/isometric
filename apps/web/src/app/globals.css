@@ -1,0 +1,167 @@
+@import 'tailwindcss';
+
+:root {
+  color-scheme: light;
+  --surface-canvas: #d1ccc6;
+  --surface-page: #eaebe6;
+  --surface-panel: #ffffff;
+  --surface-inset: #f2f1ed;
+  --surface-hover: #e9e8e2;
+  --surface-pressed: #dfe0d8;
+  --surface-selected: #e4eadf;
+  --ink-primary: #0b0b0b;
+  --ink-secondary: #50514d;
+  --ink-muted-reference: #8b8b85;
+  --ink-muted: #686963;
+  --ink-on-dark: #ffffff;
+  --ink-on-feature: #c8e8d4;
+  --ink-feature-muted-reference: #b4d8c4;
+  --stroke-subtle: #e0dfdb;
+  --stroke-control: #d2d2d2;
+  --stroke-control-strong: #777970;
+  --feature-outer: #4a9169;
+  --feature-inner: #2f6a4a;
+  --feature-history: #4a906b;
+  --feature-hatch: #397b58;
+  --feature-axis-reference: #809080;
+  --feature-highlight: #d7ee3c;
+  --state-positive: #1fb25a;
+  --state-pending: #fccc0a;
+  --state-warning: #f8a01a;
+  --state-danger: #f0563a;
+  --state-info: #c4b4fb;
+  --ink-positive: #167342;
+  --ink-warning: #8a5000;
+  --ink-danger: #b33624;
+  --ink-info: #57418a;
+  --focus-ring: #0b0b0b;
+  --focus-ring-inverse: #d7ee3c;
+  --font-ui: var(--font-inter), 'Helvetica Neue', Arial, sans-serif;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --radius-control: 22px;
+  --radius-field-multiline: 16px;
+  --radius-overlay: 24px;
+  --radius-inset: 24px;
+  --radius-panel: 32px;
+  --radius-frame: 36px;
+  --radius-pill: 999px;
+  --control-compact: 36px;
+  --control-default: 44px;
+  --control-large: 52px;
+  --icon-small: 16px;
+  --icon-default: 20px;
+  --icon-large: 24px;
+  --icon-stroke: 1.5;
+  --shadow-panel: none;
+  --shadow-overlay: 0 4px 12px rgb(11 11 11 / 0.04), 0 16px 40px rgb(11 11 11 / 0.1);
+  --shadow-dialog: 0 24px 80px rgb(11 11 11 / 0.16);
+  --overlay-scrim: rgb(11 11 11 / 0.32);
+  --duration-quick: 120ms;
+  --duration-standard: 180ms;
+  --duration-panel: 240ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --z-base: 0;
+  --z-sticky: 10;
+  --z-popover: 30;
+  --z-dialog: 50;
+  --z-toast: 70;
+  --sidebar-expanded: 232px;
+  --sidebar-rail: 72px;
+}
+
+@theme inline {
+  --color-surface-canvas: var(--surface-canvas);
+  --color-surface-page: var(--surface-page);
+  --color-surface-panel: var(--surface-panel);
+  --color-surface-inset: var(--surface-inset);
+  --color-surface-hover: var(--surface-hover);
+  --color-surface-pressed: var(--surface-pressed);
+  --color-surface-selected: var(--surface-selected);
+  --color-ink-primary: var(--ink-primary);
+  --color-ink-secondary: var(--ink-secondary);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-on-dark: var(--ink-on-dark);
+  --color-stroke-subtle: var(--stroke-subtle);
+  --color-stroke-control: var(--stroke-control);
+  --color-state-positive: var(--state-positive);
+  --color-state-pending: var(--state-pending);
+  --color-state-warning: var(--state-warning);
+  --color-state-danger: var(--state-danger);
+  --color-state-info: var(--state-info);
+  --color-ink-positive: var(--ink-positive);
+  --color-ink-warning: var(--ink-warning);
+  --color-ink-danger: var(--ink-danger);
+  --color-ink-info: var(--ink-info);
+  --font-sans: var(--font-ui);
+  --radius-control: var(--radius-control);
+  --radius-panel: var(--radius-panel);
+  --radius-inset: var(--radius-inset);
+  --radius-overlay: var(--radius-overlay);
+  --shadow-overlay: var(--shadow-overlay);
+  --shadow-dialog: var(--shadow-dialog);
+}
+
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    font-family: var(--font-ui);
+    font-size: 14px;
+    line-height: 20px;
+    color: var(--ink-primary);
+    background: var(--surface-page);
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@utility focus-ring {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+@utility focus-ring-inverse {
+  outline: 2px solid var(--focus-ring-inverse);
+  outline-offset: 3px;
+}
+
+@keyframes progress-indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
+.progress-indeterminate-bar {
+  animation: progress-indeterminate 1.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

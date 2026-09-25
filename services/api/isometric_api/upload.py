@@ -5,6 +5,8 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import os
+import re
 from dataclasses import dataclass
 
 from PIL import Image
@@ -27,6 +29,16 @@ class ValidatedUpload:
 
 def _sha256_hex(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def sanitize_original_filename(name: str | None) -> str | None:
+    if not name:
+        return None
+    base = os.path.basename(name)
+    base = re.sub(r"[\x00-\x1f\x7f]", "", base)
+    if not base:
+        return None
+    return base[:255]
 
 
 def options_hash(profile_id: str, options: dict[str, object]) -> str:

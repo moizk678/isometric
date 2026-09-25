@@ -12,6 +12,12 @@ fi
 ./scripts/test-persistence
 ./scripts/check-scene-schema
 PYTHONPATH=packages/pipeline .venv/bin/python -m isometric_pipeline.render.golden --check
+./scripts/export-openapi
+if ! git diff --quiet -- services/api/openapi.json; then
+  echo "services/api/openapi.json is out of date; run ./scripts/export-openapi" >&2
+  git diff -- services/api/openapi.json >&2 || true
+  exit 1
+fi
 ./scripts/test-api
 ./scripts/test-pipeline
 ./scripts/test-web

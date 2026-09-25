@@ -5,13 +5,18 @@ from __future__ import annotations
 import json
 import uuid
 from pathlib import Path
+from typing import Any
 
 from isometric_persistence.artifacts import ArtifactStore
 from isometric_persistence.db import DatabasePool
 from isometric_persistence.errors import ConflictError, PersistenceError
 from isometric_persistence.publishing import PublishExport, RevisionPublisher
+from isometric_persistence.repositories.documents import DocumentRepository
 from isometric_persistence.repositories.jobs import JobRepository
-from isometric_persistence.repositories.revisions import RevisionRepository
+from isometric_persistence.repositories.revisions import (
+    RevisionRepository,
+    SceneRevisionRow,
+)
 from isometric_pipeline.render import (
     STYLE_PROFILE_VERSION,
     SYMBOL_LIBRARY_VERSION,
@@ -21,9 +26,15 @@ from isometric_pipeline.render import (
 )
 from isometric_pipeline.render.versions import RENDERER_VERSION
 from isometric_pipeline.scene import load_scene
-from psycopg import OperationalError
+from psycopg import Connection, OperationalError
 from psycopg.errors import UniqueViolation
 
+from .fixture_fit import (
+    FixtureReviewItem,
+    fit_fixture_scene,
+    fixture_review_items,
+    read_source_frame,
+)
 from .queue import JobQueue
 
 FIXTURE_SCENE = (
@@ -43,13 +54,63 @@ def revision_id_for_job(job_id: uuid.UUID) -> uuid.UUID:
     return uuid.uuid5(REVISION_NAMESPACE, str(job_id))
 
 
-def _fixture_scene_bytes(document_id: uuid.UUID, revision_id: uuid.UUID) -> bytes:
-    payload = json.loads(FIXTURE_SCENE.read_text(encoding="utf-8"))
+class _ReviewItemRevisionRepository(RevisionRepository):
+    """Inserts fixture review items in the publish transaction, before commit.
+
+    The revision ID is deterministic per job, so a repeated publish fails on the
+    revision insert and rolls back these items with it.
+    """
+
+    def __init__(self, review_items: list[FixtureReviewItem]) -> None:
+        super().__init__()
+        self._review_items = review_items
+
+    def insert_revision(self, conn: Connection[Any], **kwargs: Any) -> SceneRevisionRow:
+        row = super().insert_revision(conn, **kwargs)
+        for item in self._review_items:
+            self.insert_review_item(
+                conn,
+                issue_key=item.issue_key,
+                revision_id=row.id,
+                issue_type=item.issue_type,
+                severity=item.severity,
+                state="open",
+                object_id=item.object_id,
+            )
+        return row
+
+
+def _fitted_scene(
+    source_bytes: bytes, document_id: uuid.UUID, revision_id: uuid.UUID
+) -> tuple[bytes, list[FixtureReviewItem]]:
+    fixture = json.loads(FIXTURE_SCENE.read_text(encoding="utf-8"))
+    payload = fit_fixture_scene(fixture, read_source_frame(source_bytes))
     payload["documentId"] = str(document_id)
     payload["revisionId"] = str(revision_id)
-    return json.dumps(payload, separators=(",", ":"), ensure_ascii=False).encode(
+    scene_bytes = json.dumps(payload, separators=(",", ":"), ensure_ascii=False).encode(
         "utf-8"
     )
+    return scene_bytes, fixture_review_items(payload)
+
+
+def _retry_or_exhaust(
+    pool: DatabasePool,
+    jobs: JobRepository,
+    job_id: uuid.UUID,
+    queue: JobQueue | None,
+) -> None:
+    with pool.connection() as conn:
+        job = jobs.get(conn, job_id)
+        if job is None or job.result_revision_id is not None:
+            return
+        if job.attempt < MAX_ATTEMPTS:
+            jobs.requeue_for_retry(conn, job_id)
+            conn.commit()
+            if queue is not None:
+                queue.enqueue(str(job_id))
+        else:
+            jobs.mark_failed(conn, job_id, "worker_exhausted")
+            conn.commit()
 
 
 def _complete_if_revision_exists(
@@ -79,7 +140,6 @@ def process_job(
 ) -> None:
     jobs = JobRepository()
     revs = RevisionRepository()
-    publisher = RevisionPublisher(store)
     with pool.connection() as conn:
         job = jobs.get(conn, job_id)
         if job is None:
@@ -107,14 +167,27 @@ def process_job(
     ):
         return
 
-    if not FIXTURE_SCENE.is_file():
+    with pool.connection() as conn:
+        document = DocumentRepository().get(conn, document_id)
+    source_bytes: bytes | None = None
+    if document is not None and FIXTURE_SCENE.is_file():
+        try:
+            source_bytes = store.read(document.source_uri)
+        except (FileNotFoundError, PersistenceError):
+            pass
+        except OSError:
+            _retry_or_exhaust(pool, jobs, job_id, queue)
+            return
+    if source_bytes is None:
         with pool.connection() as conn:
             jobs.mark_failed(conn, job_id, "missing_artifact")
             conn.commit()
         return
 
-    scene_bytes = _fixture_scene_bytes(document_id, revision_id)
     try:
+        scene_bytes, review_items = _fitted_scene(
+            source_bytes, document_id, revision_id
+        )
         catalog = load_symbol_library(SYMBOL_LIBRARY_VERSION)
         scene = load_scene(scene_bytes.decode("utf-8"), catalog=catalog)
         svg = render_svg(scene, SYMBOL_LIBRARY_VERSION, STYLE_PROFILE_VERSION).svg
@@ -142,6 +215,9 @@ def process_job(
         )
         conn.commit()
 
+    publisher = RevisionPublisher(
+        store, revisions=_ReviewItemRevisionRepository(review_items)
+    )
     try:
         with pool.connection() as conn:
             job = jobs.get(conn, job_id)
@@ -211,18 +287,7 @@ def process_job(
             jobs.mark_failed(conn, job_id, "missing_artifact")
             conn.commit()
     except (OSError, OperationalError):
-        with pool.connection() as conn:
-            job = jobs.get(conn, job_id)
-            if job is None or job.result_revision_id is not None:
-                return
-            if job.attempt < MAX_ATTEMPTS:
-                jobs.requeue_for_retry(conn, job_id)
-                conn.commit()
-                if queue is not None:
-                    queue.enqueue(str(job_id))
-            else:
-                jobs.mark_failed(conn, job_id, "worker_exhausted")
-                conn.commit()
+        _retry_or_exhaust(pool, jobs, job_id, queue)
     except Exception:
         with pool.connection() as conn:
             jobs.mark_failed(conn, job_id, "processing_failed")
