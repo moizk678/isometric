@@ -21,3 +21,4 @@ fi
 ./scripts/test-api
 ./scripts/test-pipeline
 ./scripts/test-web
+./scripts/test-web-e2e

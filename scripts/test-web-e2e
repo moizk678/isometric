@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Playwright starts the API (against E2E_DATABASE_URL, default isometric_e2e) and the web app itself.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+pnpm --filter @isometric/web exec playwright test "$@"

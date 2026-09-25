@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Starts the FastAPI app against the E2E database for Playwright's webServer.
+set -euo pipefail
+cd "$(dirname "$0")/../../.."
+
+if [[ -z "${LOCAL_DATABASE_URL:-}" ]]; then
+  echo "LOCAL_DATABASE_URL is required" >&2
+  exit 1
+fi
+
+PYTHONPATH=packages/persistence .venv/bin/python - <<'PY'
+import os
+from urllib.parse import urlsplit, urlunsplit
+
+import psycopg
+from psycopg import sql
+
+url = os.environ["LOCAL_DATABASE_URL"]
+parts = urlsplit(url)
+name = parts.path.lstrip("/")
+admin_url = urlunsplit(parts._replace(path="/postgres"))
+with psycopg.connect(admin_url, autocommit=True) as conn:
+    exists = conn.execute("SELECT 1 FROM pg_database WHERE datname = %s", (name,)).fetchone()
+    if exists is None:
+        conn.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(name)))
+        print(f"created database {name}")
+PY
+
+./scripts/migrate-replay
+exec ./scripts/run-api

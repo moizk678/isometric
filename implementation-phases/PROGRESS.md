@@ -9,7 +9,7 @@ Update this file after a run's exit criteria pass. `planned` is not `complete`; 
 | 02 | complete | [handoff](02-HANDOFF.md) | SVG renderer and goldens verified locally and on hosted CI (`c08ea37`, run `36183166119`). |
 | 03 | complete | [handoff](03-HANDOFF.md) | Migrations, repositories, and artifact store verified locally; cloud migration on project `bhezwfoifroyidfwdvcy`. |
 | 04 | complete | [handoff](04-HANDOFF.md) | Upload/jobs API exit checks: lease recovery, idempotent revision per job, error classes, progress/review_state; `./scripts/test-api` passes. |
-| 05 | planned | — | |
+| 05 | complete | [handoff](05-HANDOFF.md) | Upload, job, and review UI verified by `./scripts/check` with 26 Playwright tests (keyboard, touch, 1440/390/320/200% zoom, upload retry, axe); `/display` is an EXIF stand-in until Run 06. |
 | 06 | planned | — | |
 | 07 | planned | — | |
 | 08 | planned | — | |

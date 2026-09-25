@@ -77,9 +77,9 @@ export function DocumentList() {
   const hasNext = items.length === PAGE_SIZE;
 
   return (
-    <Panel
-      title="Documents"
-      actions={
+    <Panel>
+      <header className="mb-4 flex flex-wrap items-start justify-between gap-4">
+        <h2 className="m-0 text-lg font-semibold leading-6 tracking-tight">Documents</h2>
         <div className="flex items-center gap-2">
           <Button
             variant="secondary"
@@ -102,8 +102,7 @@ export function DocumentList() {
             Next
           </Button>
         </div>
-      }
-    >
+      </header>
       <ul className="m-0 flex min-w-0 list-none flex-col gap-2 p-0">
         {items.map((item) => (
           <DocumentListRow key={item.document_id} item={item} />
