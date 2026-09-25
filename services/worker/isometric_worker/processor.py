@@ -11,9 +11,14 @@ from isometric_persistence.artifacts import ArtifactStore
 from isometric_persistence.db import DatabasePool
 from isometric_persistence.errors import ConflictError, PersistenceError
 from isometric_persistence.keys import (
+    document_color_mask_key,
+    document_crop_key,
     document_display_key,
+    document_mask_key,
+    document_masks_metadata_key,
     document_normalize_metadata_key,
     document_page_key,
+    document_regions_metadata_key,
     job_stage_artifact_key,
 )
 from isometric_persistence.publishing import PublishExport, RevisionPublisher
@@ -23,11 +28,13 @@ from isometric_persistence.repositories.revisions import (
     RevisionRepository,
     SceneRevisionRow,
 )
+from isometric_pipeline.masks.stage import SeparateMasksResult, separate_masks
 from isometric_pipeline.normalize.page import (
     NormalizeLimits,
     NormalizePageError,
     normalize_page,
 )
+from isometric_pipeline.regions.stage import detect_regions
 from isometric_pipeline.render import (
     STYLE_PROFILE_VERSION,
     SYMBOL_LIBRARY_VERSION,
@@ -47,7 +54,15 @@ from .fixture_fit import (
     read_source_frame,
 )
 from .queue import JobQueue
-from .stages import NORMALIZE_PAGE_VERSION, STAGE_FIXTURE_PROCESS, STAGE_NORMALIZE_PAGE
+from .stages import (
+    DETECT_REGIONS_VERSION,
+    NORMALIZE_PAGE_VERSION,
+    SEPARATE_MASKS_VERSION,
+    STAGE_DETECT_REGIONS,
+    STAGE_FIXTURE_PROCESS,
+    STAGE_NORMALIZE_PAGE,
+    STAGE_SEPARATE_MASKS,
+)
 
 FIXTURE_SCENE = (
     Path(__file__).resolve().parents[3]
@@ -226,6 +241,189 @@ def _execute_normalize_page(
     return True
 
 
+_SEPARATE_MASK_FILE_NAMES = {
+    "grid": "grid",
+    "retained_ink": "retained-ink",
+    "black_ink": "black-ink",
+    "unclassified_ink": "unclassified-ink",
+}
+
+
+def _job_still_active(
+    pool: DatabasePool,
+    jobs: JobRepository,
+    job_id: uuid.UUID,
+) -> bool:
+    with pool.connection() as conn:
+        job = jobs.get(conn, job_id)
+        if job is None or job.cancel_requested or job.result_revision_id is not None:
+            if job and job.cancel_requested:
+                jobs.mark_canceled(conn, job_id)
+                conn.commit()
+            return False
+    return True
+
+
+def _execute_separate_masks(
+    pool: DatabasePool,
+    store: ArtifactStore,
+    jobs: JobRepository,
+    *,
+    job_id: uuid.UUID,
+    document_id: uuid.UUID,
+    input_hash: str,
+    queue: JobQueue | None,
+) -> SeparateMasksResult | None:
+    page_key = document_page_key(document_id)
+    masks_meta_key = document_masks_metadata_key(document_id)
+    try:
+        page_png = store.read(page_key)
+    except (FileNotFoundError, PersistenceError, OSError):
+        _retry_or_exhaust(pool, jobs, job_id, queue)
+        return None
+
+    try:
+        separated = separate_masks(
+            page_png,
+            document_id=str(document_id),
+            page_uri=page_key,
+            masks_json_uri=masks_meta_key,
+        )
+    except Exception:
+        with pool.connection() as conn:
+            jobs.mark_failed(conn, job_id, "processing_invalid")
+            conn.commit()
+        return None
+
+    if not _job_still_active(pool, jobs, job_id):
+        return None
+
+    try:
+        for mask_key, file_name in _SEPARATE_MASK_FILE_NAMES.items():
+            store.write_immutable(
+                document_mask_key(document_id, file_name),
+                separated.masks[mask_key],
+            )
+        for layer_id, layer_png in separated.color_layer_masks.items():
+            store.write_immutable(
+                document_color_mask_key(document_id, layer_id),
+                layer_png,
+            )
+        overlay_key = (
+            f"{job_stage_artifact_key(job_id, STAGE_SEPARATE_MASKS, separated.content_hash)}"
+            "/overlay.png"
+        )
+        store.write_immutable(overlay_key, separated.overlay_png)
+    except (OSError, PersistenceError):
+        _retry_or_exhaust(pool, jobs, job_id, queue)
+        return None
+
+    with pool.connection() as conn:
+        job = jobs.get(conn, job_id)
+        if job is None or job.cancel_requested or job.result_revision_id is not None:
+            if job and job.cancel_requested:
+                jobs.mark_canceled(conn, job_id)
+                conn.commit()
+            return None
+        jobs.insert_stage_run(
+            conn,
+            job_id=job_id,
+            stage=STAGE_SEPARATE_MASKS,
+            status=separated.status,
+            input_hash=input_hash,
+            producer_version=SEPARATE_MASKS_VERSION,
+            artifact_uri=overlay_key,
+            metrics=separated.metrics,
+            warnings=separated.warnings,
+        )
+        conn.commit()
+    return separated
+
+
+def _execute_detect_regions(
+    pool: DatabasePool,
+    store: ArtifactStore,
+    jobs: JobRepository,
+    *,
+    job_id: uuid.UUID,
+    document_id: uuid.UUID,
+    input_hash: str,
+    queue: JobQueue | None,
+    separated: SeparateMasksResult,
+) -> bool:
+    page_key = document_page_key(document_id)
+    masks_meta_key = document_masks_metadata_key(document_id)
+    regions_meta_key = document_regions_metadata_key(document_id)
+    try:
+        page_png = store.read(page_key)
+        retained_png = separated.masks["retained_ink"]
+        black_png = separated.masks["black_ink"]
+    except (FileNotFoundError, PersistenceError, OSError):
+        _retry_or_exhaust(pool, jobs, job_id, queue)
+        return False
+
+    try:
+        detected = detect_regions(
+            page_png,
+            separated.metadata,
+            retained_png,
+            black_png,
+            document_id=str(document_id),
+            masks_json_uri=masks_meta_key,
+        )
+    except Exception:
+        with pool.connection() as conn:
+            jobs.mark_failed(conn, job_id, "processing_invalid")
+            conn.commit()
+        return False
+
+    if not _job_still_active(pool, jobs, job_id):
+        return False
+
+    try:
+        store.write_immutable(
+            document_mask_key(document_id, "protection"),
+            detected.protection_png,
+        )
+        store.write_immutable(
+            document_mask_key(document_id, "geometry-ink"),
+            detected.geometry_ink_png,
+        )
+        store.write_immutable(masks_meta_key, detected.masks_json)
+        store.write_immutable(regions_meta_key, detected.regions_json)
+        for crop_id, crop_png in detected.crop_pngs.items():
+            store.write_immutable(document_crop_key(document_id, crop_id), crop_png)
+        overlay_key = (
+            f"{job_stage_artifact_key(job_id, STAGE_DETECT_REGIONS, detected.content_hash)}"
+            "/overlay.png"
+        )
+        store.write_immutable(overlay_key, detected.overlay_png)
+    except (OSError, PersistenceError):
+        _retry_or_exhaust(pool, jobs, job_id, queue)
+        return False
+
+    with pool.connection() as conn:
+        job = jobs.get(conn, job_id)
+        if job is None or job.cancel_requested or job.result_revision_id is not None:
+            if job and job.cancel_requested:
+                jobs.mark_canceled(conn, job_id)
+                conn.commit()
+            return False
+        jobs.insert_stage_run(
+            conn,
+            job_id=job_id,
+            stage=STAGE_DETECT_REGIONS,
+            status=detected.status,
+            input_hash=input_hash,
+            producer_version=DETECT_REGIONS_VERSION,
+            artifact_uri=regions_meta_key,
+            metrics=detected.metrics,
+            warnings=detected.warnings,
+        )
+        conn.commit()
+    return True
+
+
 def process_job(
     pool: DatabasePool,
     store: ArtifactStore,
@@ -288,6 +486,30 @@ def process_job(
         source_bytes=source_bytes,
         input_hash=claimed.input_hash,
         queue=queue,
+    ):
+        return
+
+    separated = _execute_separate_masks(
+        pool,
+        store,
+        jobs,
+        job_id=job_id,
+        document_id=document_id,
+        input_hash=claimed.input_hash,
+        queue=queue,
+    )
+    if separated is None:
+        return
+
+    if not _execute_detect_regions(
+        pool,
+        store,
+        jobs,
+        job_id=job_id,
+        document_id=document_id,
+        input_hash=claimed.input_hash,
+        queue=queue,
+        separated=separated,
     ):
         return
 

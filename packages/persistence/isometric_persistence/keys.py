@@ -21,6 +21,26 @@ def document_normalize_metadata_key(document_id: uuid.UUID) -> str:
     return f"documents/{document_id}/normalize.json"
 
 
+def document_masks_metadata_key(document_id: uuid.UUID) -> str:
+    return f"documents/{document_id}/masks.json"
+
+
+def document_regions_metadata_key(document_id: uuid.UUID) -> str:
+    return f"documents/{document_id}/regions.json"
+
+
+def document_mask_key(document_id: uuid.UUID, name: str) -> str:
+    return f"documents/{document_id}/masks/{name}.png"
+
+
+def document_color_mask_key(document_id: uuid.UUID, layer_id: str) -> str:
+    return f"documents/{document_id}/masks/color/{layer_id}.png"
+
+
+def document_crop_key(document_id: uuid.UUID, crop_id: str) -> str:
+    return f"documents/{document_id}/crops/{crop_id}.png"
+
+
 def job_stage_artifact_key(job_id: uuid.UUID, stage: str, content_hash: str) -> str:
     return f"jobs/{job_id}/stages/{stage}/{content_hash}"
 
