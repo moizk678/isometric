@@ -1,7 +1,7 @@
 # Run handoff — 05 Upload and review shell
 
 **Run file:** `implementation-phases/05-web-foundation.md`  
-**Status:** complete locally (hosted CI pending)  
+**Status:** complete (local and hosted CI verified)  
 **Next run:** `06-page-normalization.md`
 
 ## Delivered
@@ -49,7 +49,7 @@ All commands were run by the parent at Gate 3 on Sep 26, 2026 against the workin
 | Exit check: upload failure keeps the file and offers a clear retry | Pass | `upload-retry.spec.ts`: a simulated 500 envelope and a network reset. The attachment row keeps the filename, an alert and request ID appear, and Retry sends the same `Idempotency-Key`, gets a 202, and reaches Succeeded. |
 | Accessibility (axe, WCAG 2.2 AA tags) | Pass | `a11y.spec.ts`: documents, upload, and the workbench with a selected object at 1440 and 390 px. No violations. |
 | Screenshots | Present | 16 PNGs in [`apps/web/e2e/screenshots/`](../apps/web/e2e/screenshots/), reviewed visually at 1440, 320, and 200% zoom. |
-| Hosted CI (`Check`) | Pending | Recorded after push. |
+| Hosted CI (`Check`) | Pass | Run [`36193551919`](https://github.com/moizk678/isometric/actions/runs/36193551919) on `a04a174`, 3m8s. The log shows persistence 10, API 43, pipeline 174 + 6, Vitest 57, and Playwright 26/26 passed on the first attempt. Screenshots and report are in the `playwright-e2e` artifact. |
 
 ## Data used
 
