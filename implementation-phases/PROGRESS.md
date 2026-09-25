@@ -4,7 +4,7 @@ Update this file after a run's exit criteria pass. `planned` is not `complete`; 
 
 | Run | Status | Handoff | Key blocker or note |
 |---|---|---|---|
-| 00 | complete | [handoff](00-HANDOFF.md) | Local baseline verified; two real samples are untracked and unlabeled; hosted CI awaits a remote. |
+| 00 | complete | [handoff](00-HANDOFF.md) | Local and hosted CI verified (`eaf84d8`, run `36176905064`); two real samples are untracked and unlabeled. |
 | 01 | planned | — | |
 | 02 | planned | — | |
 | 03 | planned | — | Supabase project credentials required for cloud verification. |

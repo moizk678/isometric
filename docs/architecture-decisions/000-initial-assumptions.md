@@ -2,7 +2,7 @@
 
 **Status:** baseline record for Run 00, 2026-09-25.
 
-- **Development:** Native Python 3.12.12, Node 26.0.0, pnpm 10.23.0. Run 00 needs no Docker or live services. Git is local; no remote CI execution is verified.
+- **Development:** Native Python 3.12.12, Node 26.0.0, pnpm 10.23.0. Run 00 needs no Docker or live services. Git remote `origin` is `https://github.com/moizk678/isometric.git`; GitHub Actions run `36176905064` passed on commit `eaf84d8` (Check workflow on `main`).
 - **Real samples:** Two user-supplied PNGs are locally available, approved by the user for project use, deliberately untracked, and unlabeled. Original provenance and rights-holder details remain to be verified. The project owner owns deletion. A consented, reviewed, representative dataset and engineering reviewer are still needed for Run 17.
 - **Symbol convention:** No organization-specific piping symbol standard has been supplied. Do not infer one from two images.
 - **OCR and optional vision:** No model or provider selected; credentials and external-call policy are not supplied. Keep the optional vision lane disabled.

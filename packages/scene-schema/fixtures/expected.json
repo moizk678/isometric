@@ -1,0 +1,12 @@
+{
+  "broken-reference": "UNKNOWN_REFERENCE",
+  "non-finite-coordinate": "NON_FINITE_NUMBER",
+  "out-of-bounds-coordinate": "COORDINATE_OUT_OF_BOUNDS",
+  "singular-transform": "TRANSFORM_SINGULAR",
+  "duplicate-id": "DUPLICATE_ID",
+  "missing-machine-evidence": "MACHINE_EVIDENCE_MISSING",
+  "pipe-endpoint-mismatch": "PIPE_ENDPOINT_MISMATCH",
+  "relationship-connectivity": "RELATIONSHIP_CONNECTIVITY_FORBIDDEN",
+  "unknown-major-version": "VERSION_UNSUPPORTED",
+  "unknown-object-type": "SCHEMA_INVALID"
+}

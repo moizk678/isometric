@@ -1,0 +1,14 @@
+{
+  "name": "@isometric/scene-schema",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "generate:types": "json2ts drawing-scene.schema.json -o src/drawing-scene.ts",
+    "check": "tsc --noEmit -p ."
+  },
+  "devDependencies": {
+    "json-schema-to-typescript": "16.0.0",
+    "typescript": "5.9.3"
+  }
+}

@@ -1,0 +1,107 @@
+{
+  "schemaVersion": "1.0",
+  "documentId": "b6000001-0001-4001-8001-000000000001",
+  "revisionId": "b6000001-0001-4001-8001-000000000002",
+  "profileId": "piping_isometric",
+  "page": {
+    "sourceWidthPx": 200,
+    "sourceHeightPx": 200,
+    "displayWidthPx": 200,
+    "displayHeightPx": 200,
+    "widthPx": 200,
+    "heightPx": 200,
+    "sourceToDisplay": [
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "displayToSource": [
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "sourceToPage": [
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ],
+    "pageToSource": [
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0
+    ]
+  },
+  "layers": [
+    {
+      "id": "b6000001-0001-4001-8001-000000000003",
+      "name": "piping",
+      "sourceColor": "#1a1a1a",
+      "renderColor": "#0b5fff"
+    }
+  ],
+  "objects": [
+    {
+      "type": "unknown_mark",
+      "id": "b6000001-0001-4001-8001-000000000011",
+      "layerId": "b6000001-0001-4001-8001-000000000003",
+      "sourceCropId": "fixture-crop-unresolved-01",
+      "candidateLabels": [
+        "gate_valve",
+        "check_valve",
+        "unknown_fitting"
+      ],
+      "interpretation": {
+        "state": "machine",
+        "score": 0.88,
+        "evidence": [
+          {
+            "sourcePolygon": [
+              {
+                "x": 12.0,
+                "y": 14.0
+              },
+              {
+                "x": 28.0,
+                "y": 14.0
+              },
+              {
+                "x": 20.0,
+                "y": 26.0
+              }
+            ],
+            "stage": "vectorize",
+            "artifactId": "fixture-artifact-um-m1",
+            "observations": {
+              "confidence": 0.91
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "relationships": []
+}

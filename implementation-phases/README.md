@@ -12,7 +12,7 @@ The [critical review](CRITICAL_REVIEW.md) records architecture and run-plan defe
 4. Run the verification listed in the file plus the repository's shared checks. Record commands, results, limitations, and changed contracts in a handoff using [HANDOFF_TEMPLATE.md](HANDOFF_TEMPLATE.md).
 5. Mark the run complete in [PROGRESS.md](PROGRESS.md) only after its exit criteria pass. Carry unresolved work into a named follow-up; do not silently mark it done.
 
-Use synthetic fixtures to verify contracts and edge cases, but never report synthetic success as real-sketch accuracy. The repository currently contains the spec and UI design reference, but no labeled engineering-sketch dataset and no Git repository. Run 00 records these facts and establishes the development baseline. Real-image quality gates in runs 17 and 20 remain open until consented drawings are available.
+Use synthetic fixtures to verify contracts and edge cases, but never report synthetic success as real-sketch accuracy. The repository currently contains the spec and UI design reference, but no labeled engineering-sketch dataset; Git is configured with origin `https://github.com/moizk678/isometric.git`, and hosted CI run `36176905064` passed on commit `eaf84d8`. Run 00 records these facts and establishes the development baseline. Real-image quality gates in runs 17 and 20 remain open until consented drawings are available.
 
 ## Sequence
 

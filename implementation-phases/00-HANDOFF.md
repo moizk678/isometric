@@ -1,7 +1,7 @@
 # Run handoff — 00 Foundation and evidence registry
 
 **Run file:** `implementation-phases/00-foundation-and-evidence.md`
-**Status:** complete locally; hosted CI has not run because no remote is configured.
+**Status:** complete locally and on hosted CI (`origin` → `https://github.com/moizk678/isometric.git`).
 **Next run:** `01-scene-contract.md`
 
 ## Delivered
@@ -27,7 +27,7 @@
 | `./scripts/check` | Pass | Ruff lint/format and all tests. |
 | Private manifest schema and SHA-256 validation | Pass | Two entries valid, hashes match, both unlabeled. |
 | Git staged-file and ignore inspection | Pass | No real PNG/crop or secret staged. |
-| Hosted CI | Unverified | Workflow runs `./scripts/setup` and `./scripts/check`; no Git remote exists. |
+| Hosted CI | Pass | GitHub Actions run `36176905064` on `main` at commit `eaf84d8` (Check workflow: `./scripts/setup`, `./scripts/check`). |
 
 ## Data used
 
@@ -37,7 +37,7 @@
 ## Remaining work and risks
 
 - Project owner: verify original sample provenance and rights-holder details before broader sharing or real-data evaluation; recruit an engineering reviewer and label a representative dataset for Run 17.
-- Project owner: configure a Git remote to observe hosted CI. Supabase, artifact storage, queue, provider, deployment, auth, and organization symbol decisions remain open in ADR 000.
+- Project owner: Supabase, artifact storage, queue, provider, deployment, auth, and organization symbol decisions remain open in ADR 000.
 
 ## Next-run starting point
 

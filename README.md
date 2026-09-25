@@ -21,7 +21,7 @@ Individual checks:
 ./scripts/test-web
 ```
 
-`./scripts/check` also runs Ruff lint and format checks. CI calls the same setup and check scripts. No Git remote is configured yet, so a hosted CI run is not claimed.
+`./scripts/check` also runs Ruff lint and format checks. GitHub Actions runs the same setup and check scripts on `main`. The Git remote is `https://github.com/moizk678/isometric.git`; hosted CI run [36176905064](https://github.com/moizk678/isometric/actions/runs/36176905064) passed on commit `eaf84d8` (Check workflow).
 
 ## Layout and data
 
