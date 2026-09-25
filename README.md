@@ -11,7 +11,7 @@ Install Python **3.12.12**, Node **26.0.0**, and pnpm **10.23.0**. On a fresh ch
 ./scripts/check
 ```
 
-`setup` creates `.venv`, installs pinned Python development dependencies from `requirements-dev.lock`, and installs the pnpm workspace from `pnpm-lock.yaml`. No database, Docker, credential, or private drawing is required. Keep environment values in an untracked `.env`; `.env.example` documents names only.
+`setup` creates `.venv`, installs pinned Python development dependencies from `requirements-dev.lock`, and installs the pnpm workspace from `pnpm-lock.yaml`. Run 03 checks require `LOCAL_DATABASE_URL` (see [persistence](docs/persistence.md)). Keep environment values in an untracked `.env`; `.env.example` documents names only.
 
 Individual checks:
 
@@ -26,6 +26,8 @@ Individual checks:
 ## Layout and data
 
 The [DrawingScene contract](docs/scene-contract.md) documents coordinate spaces, invariants, issue codes, and schema tooling for Run 01. The [SVG renderer](docs/svg-renderer.md) documents deterministic export, preview rasterization, symbol IDs, and golden checks for Run 02.
+
+The [persistence layer](docs/persistence.md) documents PostgreSQL migrations, artifact storage, revision publishing, and local database setup for Run 03.
 
 `apps/web` is the future Next.js workbench; `services/api` and `services/worker` are future Python services; `packages/pipeline` and `packages/evaluation` hold shared conversion and evidence code. `profiles`, `supabase/migrations`, and `infra/local` are reserved for their later bounded runs. No placeholder service currently listens on a port.
 

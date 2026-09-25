@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+if [[ -z "${LOCAL_DATABASE_URL:-}" ]]; then
+  echo "LOCAL_DATABASE_URL is required" >&2
+  exit 1
+fi
+
+PYTHONPATH="packages/pipeline:packages/persistence" .venv/bin/python - <<'PY'
+import json
+import os
+import uuid
+from pathlib import Path
+
+from isometric_persistence.artifacts import FilesystemArtifactStore
+from isometric_persistence.config import DatabaseSettings
+from isometric_persistence.db import DatabasePool
+from isometric_persistence.keys import document_original_key
+from isometric_persistence.publishing import PublishExport, RevisionPublisher
+from isometric_persistence.repositories.documents import DocumentRepository
+
+fixture = Path("packages/scene-schema/fixtures/valid/annotation.json").read_text(
+    encoding="utf-8"
+)
+scene = json.loads(fixture)
+document_id = uuid.UUID(scene["documentId"])
+
+root = Path(os.environ.get("ARTIFACT_ROOT", ".private/artifacts"))
+store = FilesystemArtifactStore(root)
+pool = DatabasePool(DatabaseSettings(url=os.environ["LOCAL_DATABASE_URL"]))
+docs = DocumentRepository()
+publisher = RevisionPublisher(store)
+
+with pool.connection() as conn:
+    if docs.get(conn, document_id) is None:
+        docs.create(
+            conn,
+            owner_id="seed-owner",
+            source_hash="seed",
+            source_uri=document_original_key(document_id),
+            source_mime="image/png",
+        )
+        conn.commit()
+    publisher.publish(
+        conn,
+        document_id=document_id,
+        expected_parent_revision_id=None,
+        schema_version="1.0",
+        scene_bytes=fixture.encode("utf-8"),
+        author_type="machine",
+        review_state="in_review",
+        validation_status="valid",
+        exports=[
+            PublishExport(
+                kind="svg",
+                format="svg",
+                data=b"<svg xmlns='http://www.w3.org/2000/svg'/>",
+                renderer_version="1.0.0",
+            )
+        ],
+    )
+    conn.commit()
+pool.close()
+print("seed complete")
+PY

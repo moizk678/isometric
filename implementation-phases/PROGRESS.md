@@ -7,7 +7,7 @@ Update this file after a run's exit criteria pass. `planned` is not `complete`; 
 | 00 | complete | [handoff](00-HANDOFF.md) | Local and hosted CI verified (`eaf84d8`, run `36176905064`); two real samples are untracked and unlabeled. |
 | 01 | complete | [handoff](01-HANDOFF.md) | Scene contract v1.0 in CI; review events and profile tolerances deferred. |
 | 02 | complete | [handoff](02-HANDOFF.md) | SVG renderer and goldens verified locally and on hosted CI (`c08ea37`, run `36183166119`). |
-| 03 | planned | — | Supabase project credentials required for cloud verification. |
+| 03 | complete | [handoff](03-HANDOFF.md) | Migrations, repositories, and artifact store verified locally; cloud migration on project `bhezwfoifroyidfwdvcy`. |
 | 04 | planned | — | |
 | 05 | planned | — | |
 | 06 | planned | — | |

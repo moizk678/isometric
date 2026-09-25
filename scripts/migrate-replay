@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+if [[ -z "${LOCAL_DATABASE_URL:-}" ]]; then
+  echo "LOCAL_DATABASE_URL is required" >&2
+  exit 1
+fi
+
+PYTHONPATH=packages/persistence .venv/bin/python - <<'PY'
+from isometric_persistence.config import DatabaseSettings
+from isometric_persistence.db import DatabasePool
+from isometric_persistence.migrate import apply_migrations
+
+settings = DatabaseSettings(url=__import__("os").environ["LOCAL_DATABASE_URL"])
+pool = DatabasePool(settings)
+with pool.connection() as conn:
+    first = apply_migrations(conn)
+    conn.commit()
+    second = apply_migrations(conn)
+    conn.commit()
+if second:
+    raise SystemExit("second migration pass applied new files; expected no-op")
+print(f"migrations ok ({len(first)} applied on first pass)")
+pool.close()
+PY

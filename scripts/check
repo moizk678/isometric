@@ -4,6 +4,12 @@ cd "$(dirname "$0")/.."
 
 .venv/bin/ruff check services packages
 .venv/bin/ruff format --check services packages
+if [[ -z "${LOCAL_DATABASE_URL:-}" ]]; then
+  echo "LOCAL_DATABASE_URL is required for Run 03 persistence checks" >&2
+  exit 1
+fi
+./scripts/migrate-replay
+./scripts/test-persistence
 ./scripts/check-scene-schema
 PYTHONPATH=packages/pipeline .venv/bin/python -m isometric_pipeline.render.golden --check
 ./scripts/test-api

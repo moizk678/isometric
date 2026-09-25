@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+PYTHONPATH="packages/pipeline:packages/persistence" .venv/bin/python -m unittest discover \
+  -s packages/persistence/tests -p 'test_*.py' -v

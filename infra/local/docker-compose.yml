@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: isometric
+      POSTGRES_PASSWORD: isometric
+      POSTGRES_DB: isometric
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U isometric -d isometric"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
