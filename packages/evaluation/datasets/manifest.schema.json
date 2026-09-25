@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://isometric.local/schemas/dataset-manifest/1.0.0",
+  "title": "Isometric dataset manifest v1.0.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "entries"],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "entries": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/entry" }
+    }
+  },
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drawing_id",
+        "asset_uri",
+        "rights_consent",
+        "source_type",
+        "profile",
+        "difficulty_tags",
+        "split",
+        "label_status",
+        "annotation_uri",
+        "checksum_sha256"
+      ],
+      "properties": {
+        "drawing_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9_-]*$"
+        },
+        "asset_uri": { "type": "string", "minLength": 1 },
+        "rights_consent": { "$ref": "#/$defs/rights_consent" },
+        "source_type": {
+          "enum": ["synthetic", "scan", "photo", "unknown"]
+        },
+        "profile": { "type": "string", "minLength": 1 },
+        "difficulty_tags": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "split": { "enum": ["development", "tuning", "test", "unassigned"] },
+        "label_status": { "enum": ["unlabeled", "draft", "reviewed"] },
+        "annotation_uri": {
+          "oneOf": [{ "type": "string", "minLength": 1 }, { "type": "null" }]
+        },
+        "checksum_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "label_status": { "const": "unlabeled" } } },
+          "then": { "properties": { "annotation_uri": { "type": "null" } } }
+        },
+        {
+          "if": { "properties": { "source_type": { "const": "synthetic" } } },
+          "then": {
+            "properties": {
+              "rights_consent": {
+                "properties": { "status": { "const": "not_applicable" } }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "rights_consent": {
+                "properties": { "status": { "const": "approved" } }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "rights_consent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "permission_basis",
+        "allowed_use",
+        "recorded_by",
+        "recorded_at",
+        "deletion_owner"
+      ],
+      "properties": {
+        "status": { "enum": ["approved", "not_applicable"] },
+        "permission_basis": { "type": "string", "minLength": 1 },
+        "allowed_use": { "type": "string", "minLength": 1 },
+        "recorded_by": { "type": "string", "minLength": 1 },
+        "recorded_at": { "type": "string", "format": "date" },
+        "deletion_owner": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

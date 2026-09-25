@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+.venv/bin/ruff check services packages
+.venv/bin/ruff format --check services packages
+./scripts/test-api
+./scripts/test-pipeline
+./scripts/test-web

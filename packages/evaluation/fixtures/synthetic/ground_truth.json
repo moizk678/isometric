@@ -1,0 +1,27 @@
+{
+  "fixture_version": "1.0.0",
+  "synthetic_only": true,
+  "connected_crossing": {
+    "routes": ["horizontal", "vertical"],
+    "crossing_point": [64, 64],
+    "shared_node_id": "junction-1",
+    "connected": true
+  },
+  "disconnected_crossing": {
+    "routes": ["horizontal", "vertical"],
+    "crossing_point": [64, 64],
+    "shared_node_id": null,
+    "connected": false
+  },
+  "note_crop": {
+    "bbox": [23, 48, 83, 69],
+    "literal_text": "VALVE"
+  },
+  "dimension": {
+    "literal_text": "25 MM",
+    "parsed_value": 25,
+    "unit": "mm",
+    "dimension_span": [[24, 78], [104, 78]],
+    "association": "synthetic-route-1"
+  }
+}

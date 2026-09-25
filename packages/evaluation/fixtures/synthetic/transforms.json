@@ -1,0 +1,24 @@
+{
+  "fixture_version": "1.0.0",
+  "synthetic_only": true,
+  "cases": [
+    {
+      "id": "identity",
+      "source_size": [128, 128],
+      "display_size": [128, 128],
+      "page_size": [128, 128],
+      "source_to_display": [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+      "display_to_page": [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+      "source_to_page": [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+    },
+    {
+      "id": "rotate_90_then_scale",
+      "source_size": [80, 120],
+      "display_size": [120, 80],
+      "page_size": [260, 180],
+      "source_to_display": [[0, -1, 119], [1, 0, 0], [0, 0, 1]],
+      "display_to_page": [[2, 0, 10], [0, 2, 20], [0, 0, 1]],
+      "source_to_page": [[0, -2, 248], [2, 0, 20], [0, 0, 1]]
+    }
+  ]
+}

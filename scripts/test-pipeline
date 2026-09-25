@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+PYTHONPATH="packages/pipeline" .venv/bin/python -m unittest discover \
+  -s packages/pipeline/tests -p 'test_*.py' -v
+PYTHONPATH="packages/evaluation" .venv/bin/python -m unittest discover \
+  -s packages/evaluation/tests -p 'test_*.py' -v
