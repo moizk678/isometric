@@ -132,6 +132,43 @@ def _validate(scene: DrawingScene, library: SymbolLibrary) -> None:
             )
             for issue in exc.issues
         ) from exc
+    issues = _rejected_node_references(scene)
+    if issues:
+        raise RenderError(issues)
+
+
+def _rejected_node_references(scene: DrawingScene) -> list[RenderIssue]:
+    # Omitting the junction would draw its pipes as disconnected, so a live
+    # object attached to a rejected junction is refused instead.
+    rejected = {
+        obj.id
+        for obj in scene.objects
+        if isinstance(obj, Junction) and obj.interpretation.state == "rejected"
+    }
+    issues = []
+    for i, obj in enumerate(scene.objects):
+        if obj.interpretation.state == "rejected":
+            continue
+        if isinstance(obj, PipeSegment):
+            refs = [("startNodeId", obj.start_node_id), ("endNodeId", obj.end_node_id)]
+        elif isinstance(obj, SymbolObject):
+            refs = [
+                (f"portNodeIds[{json.dumps(port, ensure_ascii=False)}]", ref)
+                for port, ref in obj.port_node_ids.items()
+            ]
+        else:
+            continue
+        issues += [
+            RenderIssue(
+                code=RenderIssueCode.SCENE_INVALID,
+                path=f"objects[{i}].{field}",
+                object_id=obj.id,
+                message=f"live {obj.type} is attached to rejected junction {ref}",
+            )
+            for field, ref in refs
+            if ref in rejected
+        ]
+    return issues
 
 
 @dataclass(frozen=True)

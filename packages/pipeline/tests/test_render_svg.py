@@ -537,6 +537,39 @@ class JunctionTest(RenderTestCase):
         root = parse(render(scene([center, *ends, *pipes])))
         self.assertEqual(find_all(group(root, "connections"), "circle"), [])
 
+    def test_live_pipes_on_rejected_junction_are_refused(self):
+        center = junction(J5, 100.0, 100.0, "crossing")
+        ends = [
+            junction(J1, 20.0, 100.0),
+            junction(J2, 180.0, 100.0),
+            junction(J3, 100.0, 20.0),
+            junction(J4, 100.0, 180.0),
+        ]
+        pipes = [
+            pipe(p, end, center) for p, end in zip((P1, P2, P3, P4), ends, strict=True)
+        ]
+        center["interpretation"] = interp("rejected")
+        pipes[3]["interpretation"] = interp("rejected")
+        with self.assertRaises(RenderError) as caught:
+            render(scene([center, *ends, *pipes]))
+        error = caught.exception
+        self.assertEqual(error.codes, (RenderIssueCode.SCENE_INVALID,) * 3)
+        self.assertEqual([i.object_id for i in error.issues], [P1, P2, P3])
+        self.assertEqual(error.issues[0].path, "objects[5].endNodeId")
+
+    def test_symbol_port_on_rejected_junction_is_refused(self):
+        objects = route() + [
+            symbol("ball_valve", {"inlet": J1, "outlet": None}, anchor=(70.0, 100.0))
+        ]
+        objects[0]["interpretation"] = interp("rejected")
+        objects[2]["interpretation"] = interp("rejected")
+        with self.assertRaises(RenderError) as caught:
+            render(scene(objects))
+        (issue,) = caught.exception.issues
+        self.assertEqual(issue.code, RenderIssueCode.SCENE_INVALID)
+        self.assertEqual(issue.path, 'objects[3].portNodeIds["inlet"]')
+        self.assertEqual(issue.object_id, SYMBOL)
+
     def test_unknown_junction_gets_unresolved_ring(self):
         objects = route()
         objects[1]["kind"] = "unknown"
@@ -672,8 +705,8 @@ class TextTest(RenderTestCase):
 
     def test_callout_to_rejected_target_is_skipped(self):
         objects = route() + [annotation()]
-        objects[0]["interpretation"] = interp("rejected")
-        root = parse(render(scene(objects, [callout(J1)])))
+        objects[2]["interpretation"] = interp("rejected")
+        root = parse(render(scene(objects, [callout(P1)])))
         self.assertEqual(list(group(root, "callouts")), [])
 
 

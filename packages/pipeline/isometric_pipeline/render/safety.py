@@ -42,6 +42,9 @@ _TRANSFORM_LIST = re.compile(r"(?:\s*(?:translate|rotate|scale)\s*\([^()]*\)\s*)
 _TRANSFORM = re.compile(r"(translate|rotate|scale)\s*\(([^()]*)\)")
 _TRANSFORM_ARITY = {"translate": (1, 2), "rotate": (1, 3), "scale": (1, 2)}
 _PATH_DATA = re.compile(r"[MmLlHhVvZzAaCcSsQqTt0-9eE.,+\-\s]*")
+# Paint is parsed as CSS, where an escape such as "\75 rl(" still spells url(.
+_PAINT = re.compile(r"none|#[0-9A-Fa-f]{3}(?:[0-9A-Fa-f]{3})?")
+_PAINT_ATTRIBUTES = frozenset({"fill", "stroke"})
 
 _URL_TARGET_ELEMENTS = frozenset({"marker"})
 _LOCAL_CONTAINERS = frozenset({"symbol", "marker"})
@@ -312,6 +315,11 @@ class _Checker:
             return (
                 RenderIssueCode.SVG_EXTERNAL_REFERENCE,
                 f"{name}={_show(value)} may not contain url()",
+            )
+        if name in _PAINT_ATTRIBUTES and not _PAINT.fullmatch(value):
+            return (
+                RenderIssueCode.SVG_ATTRIBUTE_FORBIDDEN,
+                f"{name}={_show(value)} must be 'none' or a #hex color",
             )
         if name == "xmlns" and value != SVG_NAMESPACE:
             return (

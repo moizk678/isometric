@@ -313,6 +313,20 @@ class ReferenceTest(SafetyTestCase):
             with self.subTest(new):
                 self.assertCodes(mutate(old, new), Code.SVG_EXTERNAL_REFERENCE)
 
+    def test_paint_must_be_none_or_a_hex_color(self):
+        for value in (
+            "\\75 rl(https://evil.example/p.svg#g)",
+            "u\\rl(https://evil.example/p.svg#g)",
+            "var(--x)",
+            "red",
+        ):
+            with self.subTest(value):
+                svg = mutate('fill="none"', f'fill="{value}"')
+                self.assertCodes(svg, Code.SVG_ATTRIBUTE_FORBIDDEN)
+        svg = mutate('stroke="#0000ff" stroke-width="2"', 'stroke="\\75 rl(#x)"')
+        self.assertCodes(svg, Code.SVG_ATTRIBUTE_FORBIDDEN)
+        self.assertValid(mutate('fill="none"', 'fill="#ABC"'))
+
     def test_local_reference_must_name_a_symbol_or_marker(self):
         for target in ("#pipes", "#sym-missing"):
             with self.subTest(target):

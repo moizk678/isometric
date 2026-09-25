@@ -1,7 +1,11 @@
+import base64
 import copy
 import unittest
 from io import BytesIO
+from pathlib import Path
+from unittest import mock
 
+import isometric_pipeline.render.preview as preview_module
 from isometric_pipeline.render.errors import RenderError, RenderIssueCode
 from isometric_pipeline.render.preview import rasterize_preview
 from PIL import Image
@@ -14,6 +18,11 @@ _SAMPLE_SVG = b"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" wi
 _OVERLAY_SVG = b"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" width="20" height="20">
   <circle cx="10" cy="10" r="4" fill="#ff0000"/>
 </svg>"""
+
+_EMPTY_SVG = (
+    b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" width="20"'
+    b' height="20"></svg>'
+)
 
 
 class RasterizePreviewTest(unittest.TestCase):
@@ -45,6 +54,54 @@ class RasterizePreviewTest(unittest.TestCase):
         )
         self.assertEqual(export_svg, before)
         self.assertNotEqual(without_overlay.sha256, with_overlay.sha256)
+
+    def test_file_and_remote_hrefs_are_refused_in_base_and_overlay(self):
+        for href in (
+            'href="/etc/secret.png"',
+            'href="file:///etc/secret.png"',
+            'href="https://evil.example/x.png"',
+            'xmlns:xlink="http://www.w3.org/1999/xlink" xlink:href="secret.png"',
+            'href="data:image/svg+xml;base64,PHN2Zy8+"',
+        ):
+            image = f'<image {href} width="20" height="20"/>'.encode()
+            document = _EMPTY_SVG.replace(b"</svg>", image + b"</svg>")
+            for name, kwargs in (
+                ("base", {"svg": document}),
+                ("overlay", {"svg": _SAMPLE_SVG, "overlay_svg": document}),
+            ):
+                with self.subTest(href=href, document=name):
+                    with self.assertRaises(RenderError) as ctx:
+                        rasterize_preview(**kwargs)
+                    self.assertEqual(
+                        ctx.exception.codes, (RenderIssueCode.SVG_EXTERNAL_REFERENCE,)
+                    )
+
+    def test_local_and_raster_data_hrefs_are_allowed(self):
+        png = BytesIO()
+        Image.new("RGB", (1, 1), (255, 0, 0)).save(png, format="PNG")
+        data = base64.b64encode(png.getvalue()).decode()
+        overlay = _EMPTY_SVG.replace(
+            b"</svg>",
+            f'<image href="data:image/png;base64,{data}" width="20" height="20"/>'
+            "</svg>".encode(),
+        )
+        preview = rasterize_preview(_SAMPLE_SVG, overlay_svg=overlay)
+        with Image.open(BytesIO(preview.png)) as image:
+            self.assertEqual(image.convert("RGB").getpixel((1, 1)), (255, 0, 0))
+
+    def test_doctype_is_refused(self):
+        svg = b'<!DOCTYPE svg [<!ENTITY p "/etc/secret.png">]>' + _SAMPLE_SVG
+        with self.assertRaises(RenderError) as ctx:
+            rasterize_preview(svg)
+        self.assertEqual(ctx.exception.codes, (RenderIssueCode.SVG_XML_INVALID,))
+
+    def test_missing_bundled_font_fails_instead_of_dropping_text(self):
+        missing = Path(__file__).with_name("no-such-font.ttf")
+        with mock.patch.object(preview_module, "_BUNDLED_FONT", missing):
+            with self.assertRaises(RenderError) as ctx:
+                rasterize_preview(_SAMPLE_SVG)
+        self.assertEqual(ctx.exception.codes, (RenderIssueCode.RASTERIZE_FAILED,))
+        self.assertIn("font", str(ctx.exception))
 
 
 if __name__ == "__main__":

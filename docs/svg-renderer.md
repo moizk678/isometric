@@ -30,7 +30,9 @@ Parses `svg` with a restricted expat handler (no DOCTYPE, entities, notations, o
 
 ### `rasterize_preview(svg, *, scale=1.0, overlay_svg=None) -> PreviewResult`
 
-Rasterizes export SVG to PNG with **resvg-py@0.5.0**. Uses only the bundled **Liberation Sans** font file and `skip_system_fonts=True`, so preview pixels do not depend on host fonts. Optional `overlay_svg` is composited for review or paper overlays in previews only; overlays are not part of the exported SVG and are rejected by `validate_svg` on exports.
+Rasterizes export SVG to PNG with **resvg-py@0.5.0**. Uses only the bundled **Liberation Sans** font file and `skip_system_fonts=True`, so preview pixels do not depend on host fonts; a missing font file raises `RASTERIZE_FAILED` instead of dropping text. Optional `overlay_svg` is composited for review or paper overlays in previews only; overlays are not part of the exported SVG and are rejected by `validate_svg` on exports.
+
+Both documents must be self-contained: a DOCTYPE or processing instruction raises `SVG_XML_INVALID`, and any `href` other than a local `#id` or a `data:image/{png,jpeg,gif,webp}` URI raises `SVG_EXTERNAL_REFERENCE`, because resvg would otherwise read image files from the host by path.
 
 `PreviewResult` includes `png`, `sha256`, `rasterizer`, and `font` (`LiberationSans-Regular.ttf@sha256:…`).
 
@@ -87,6 +89,7 @@ Connectivity is **only** what the scene encodes:
 - Pipe `startNodeId` / `endNodeId` sharing a junction, and symbol `portNodeIds` pointing at junctions (or `null` for explicitly unresolved ports).
 - Geometric crossings without a shared junction remain disconnected: no connection dot at the crossing (`crossing-unconnected`). A junction at the crossing with degree 4 gets a dot (`crossing-connected`).
 - Relationships never imply pipe connectivity (Run 01 invariant).
+- A non-rejected pipe or symbol port attached to a **rejected** junction raises `SCENE_INVALID`. Omitting the junction would otherwise draw its pipes as disconnected.
 
 The renderer does not add pipes, junctions, symbols, or ports to “complete” a drawing.
 
