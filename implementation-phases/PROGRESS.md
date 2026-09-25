@@ -15,7 +15,7 @@ Update this file after a run's exit criteria pass. `planned` is not `complete`; 
 | 08 | complete | [handoff](08-HANDOFF.md) | `extract_centerlines` + `fit_primitives`, `centerlines.json` / `primitives.json`; fixture scene publish unchanged. |
 | 09 | complete | [handoff](09-HANDOFF.md) | `snap_primitives`, `axes.json` / `snapped-primitives.json`; fixture scene publish unchanged. |
 | 10 | complete | [handoff](10-HANDOFF.md) | `infer_topology`, `topology.json`; fixture scene publish unchanged. |
-| 11 | planned | — | OCR model selection requires real handwritten samples. |
+| 11 | complete | [handoff](11-HANDOFF.md) | `transcribe_regions`, `text-candidates.json`; TrOCR + FakeOCR in CI; accuracy unmeasured on real handwriting. |
 | 12 | planned | — | Organization symbol standard requires sample drawings. |
 | 13 | planned | — | |
 | 14 | planned | — | |

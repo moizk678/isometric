@@ -14,11 +14,17 @@ from .config import DatabaseSettings
 
 class DatabasePool:
     def __init__(self, settings: DatabaseSettings) -> None:
+        # Transaction poolers (e.g. Supabase :6543) cannot reuse prepared statements
+        # across pooled server sessions; disable client-side prepare for compatibility.
         self._pool = ConnectionPool(
             conninfo=settings.url,
             min_size=settings.min_pool_size,
             max_size=settings.max_pool_size,
-            kwargs={"row_factory": dict_row, "autocommit": False},
+            kwargs={
+                "row_factory": dict_row,
+                "autocommit": False,
+                "prepare_threshold": None,
+            },
             open=True,
         )
 

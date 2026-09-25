@@ -49,12 +49,15 @@ class UploadJobsIntegrationTest(unittest.TestCase):
         cls.artifact_root = Path(tempfile.mkdtemp(prefix="isometric-api-artifacts-"))
         os.environ["ARTIFACT_ROOT"] = str(cls.artifact_root)
         os.environ["SUPABASE_DATABASE_URL"] = cls.db_url
-        pool = DatabasePool(DatabaseSettings(url=cls.db_url))
-        with pool.connection() as conn:
+        cls.pool = DatabasePool(DatabaseSettings(url=cls.db_url))
+        with cls.pool.connection() as conn:
             apply_migrations(conn)
             conn.commit()
-        pool.close()
         cls.client = TestClient(create_app())
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls.pool.close()
 
     def _headers(self, owner: str = "owner-a") -> dict[str, str]:
         return {"X-Owner-Id": owner}
@@ -197,9 +200,8 @@ class UploadJobsIntegrationTest(unittest.TestCase):
                 f"/api/v1/jobs/{job_id}/cancel", headers=self._headers("cancel-owner")
             )
             self.assertEqual(canceled.status_code, 200)
-            pool = DatabasePool(DatabaseSettings(url=self.db_url))
             store = app.state.runtime.store
-            process_job(pool, store, uuid.UUID(job_id))
+            process_job(self.pool, store, uuid.UUID(job_id))
             job = client.get(
                 f"/api/v1/jobs/{job_id}", headers=self._headers("cancel-owner")
             )
@@ -209,7 +211,6 @@ class UploadJobsIntegrationTest(unittest.TestCase):
                 headers=self._headers("cancel-owner"),
             )
             self.assertIsNone(doc.json()["current_revision_id"])
-            pool.close()
         finally:
             os.environ.pop("SKIP_INLINE_WORKER", None)
 
@@ -217,14 +218,12 @@ class UploadJobsIntegrationTest(unittest.TestCase):
         created = self._upload(owner="dup-owner")
         document_id = created.json()["document_id"]
         job_id = uuid.UUID(created.json()["job_id"])
-        pool = DatabasePool(DatabaseSettings(url=self.db_url))
         store = self.client.app.state.runtime.store
-        process_job(pool, store, job_id)
-        process_job(pool, store, job_id)
+        process_job(self.pool, store, job_id)
+        process_job(self.pool, store, job_id)
         revs = RevisionRepository()
-        with pool.connection() as conn:
+        with self.pool.connection() as conn:
             rows = revs.list_for_document(conn, uuid.UUID(document_id))
-        pool.close()
         self.assertEqual(len(rows), 1)
 
     def test_list_documents_only_returns_caller_items(self) -> None:
@@ -255,9 +254,8 @@ class UploadJobsIntegrationTest(unittest.TestCase):
             )
             job_id = uuid.UUID(created.json()["job_id"])
             document_id = created.json()["document_id"]
-            pool = DatabasePool(DatabaseSettings(url=self.db_url))
             jobs = JobRepository()
-            with pool.connection() as conn:
+            with self.pool.connection() as conn:
                 jobs.claim(conn, job_id=job_id)
                 jobs.request_cancel(conn, job_id)
                 conn.execute(
@@ -270,7 +268,7 @@ class UploadJobsIntegrationTest(unittest.TestCase):
                 )
                 conn.commit()
             queue = LocalJobQueue()
-            run_once(pool, app.state.runtime.store, queue)
+            run_once(self.pool, app.state.runtime.store, queue)
             job = client.get(
                 f"/api/v1/jobs/{job_id}", headers=self._headers("cancel-lease-owner")
             )
@@ -280,7 +278,6 @@ class UploadJobsIntegrationTest(unittest.TestCase):
                 headers=self._headers("cancel-lease-owner"),
             )
             self.assertIsNone(doc.json()["current_revision_id"])
-            pool.close()
         finally:
             os.environ.pop("SKIP_INLINE_WORKER", None)
 
@@ -297,13 +294,12 @@ class UploadJobsIntegrationTest(unittest.TestCase):
             )
             job_id = uuid.UUID(created.json()["job_id"])
             document_id = uuid.UUID(created.json()["document_id"])
-            pool = DatabasePool(DatabaseSettings(url=self.db_url))
             jobs = JobRepository()
-            with pool.connection() as conn:
+            with self.pool.connection() as conn:
                 claimed = jobs.claim(conn, job_id=job_id)
                 conn.commit()
             self.assertIsNotNone(claimed)
-            with pool.connection() as conn:
+            with self.pool.connection() as conn:
                 conn.execute(
                     """
                     UPDATE drawing.jobs
@@ -314,16 +310,15 @@ class UploadJobsIntegrationTest(unittest.TestCase):
                 )
                 conn.commit()
             queue = LocalJobQueue()
-            run_once(pool, app.state.runtime.store, queue)
+            run_once(self.pool, app.state.runtime.store, queue)
             job = client.get(
                 f"/api/v1/jobs/{job_id}", headers=self._headers("lease-owner")
             )
             self.assertEqual(job.json()["state"], "succeeded")
             revs = RevisionRepository()
-            with pool.connection() as conn:
+            with self.pool.connection() as conn:
                 rows = revs.list_for_document(conn, document_id)
             self.assertEqual(len(rows), 1)
-            pool.close()
         finally:
             os.environ.pop("SKIP_INLINE_WORKER", None)
 
@@ -340,11 +335,10 @@ class UploadJobsIntegrationTest(unittest.TestCase):
             )
             job_id = uuid.UUID(created.json()["job_id"])
             document_id = uuid.UUID(created.json()["document_id"])
-            pool = DatabasePool(DatabaseSettings(url=self.db_url))
             store = app.state.runtime.store
-            process_job(pool, store, job_id)
+            process_job(self.pool, store, job_id)
             revision_id = revision_id_for_job(job_id)
-            with pool.connection() as conn:
+            with self.pool.connection() as conn:
                 conn.execute(
                     """
                     UPDATE drawing.jobs
@@ -357,17 +351,16 @@ class UploadJobsIntegrationTest(unittest.TestCase):
                 )
                 conn.commit()
             queue = LocalJobQueue()
-            run_once(pool, store, queue)
+            run_once(self.pool, store, queue)
             job = client.get(
                 f"/api/v1/jobs/{job_id}", headers=self._headers("retry-owner")
             )
             self.assertEqual(job.json()["state"], "succeeded")
             self.assertEqual(job.json()["result_revision_id"], str(revision_id))
             revs = RevisionRepository()
-            with pool.connection() as conn:
+            with self.pool.connection() as conn:
                 rows = revs.list_for_document(conn, document_id)
             self.assertEqual(len(rows), 1)
-            pool.close()
         finally:
             os.environ.pop("SKIP_INLINE_WORKER", None)
 
@@ -384,23 +377,21 @@ class UploadJobsIntegrationTest(unittest.TestCase):
             )
             job_id = uuid.UUID(created.json()["job_id"])
             document_id = uuid.UUID(created.json()["document_id"])
-            pool = DatabasePool(DatabaseSettings(url=self.db_url))
             store = app.state.runtime.store
             with patch(
                 "isometric_worker.processor.load_scene",
                 side_effect=ValueError("bad scene"),
             ):
-                process_job(pool, store, job_id)
+                process_job(self.pool, store, job_id)
             job = client.get(
                 f"/api/v1/jobs/{job_id}", headers=self._headers("invalid-owner")
             )
             self.assertEqual(job.json()["state"], "failed")
             self.assertEqual(job.json()["error_code"], "processing_invalid")
             revs = RevisionRepository()
-            with pool.connection() as conn:
+            with self.pool.connection() as conn:
                 rows = revs.list_for_document(conn, document_id)
             self.assertEqual(len(rows), 0)
-            pool.close()
         finally:
             os.environ.pop("SKIP_INLINE_WORKER", None)
 
@@ -416,14 +407,13 @@ class UploadJobsIntegrationTest(unittest.TestCase):
                 headers=self._headers("transient-owner"),
             )
             job_id = uuid.UUID(created.json()["job_id"])
-            pool = DatabasePool(DatabaseSettings(url=self.db_url))
             store = app.state.runtime.store
             queue = LocalJobQueue()
             with patch(
                 "isometric_worker.processor.RevisionPublisher.publish",
                 side_effect=OSError("disk full"),
             ):
-                process_job(pool, store, job_id, queue=queue)
+                process_job(self.pool, store, job_id, queue=queue)
             job = client.get(
                 f"/api/v1/jobs/{job_id}", headers=self._headers("transient-owner")
             )
@@ -432,14 +422,13 @@ class UploadJobsIntegrationTest(unittest.TestCase):
                 "isometric_worker.processor.RevisionPublisher.publish",
                 side_effect=OSError("disk full"),
             ):
-                process_job(pool, store, job_id, queue=queue)
-                process_job(pool, store, job_id, queue=queue)
+                process_job(self.pool, store, job_id, queue=queue)
+                process_job(self.pool, store, job_id, queue=queue)
             job = client.get(
                 f"/api/v1/jobs/{job_id}", headers=self._headers("transient-owner")
             )
             self.assertEqual(job.json()["state"], "failed")
             self.assertEqual(job.json()["error_code"], "worker_exhausted")
-            pool.close()
         finally:
             os.environ.pop("SKIP_INLINE_WORKER", None)
 
@@ -452,10 +441,8 @@ class UploadJobsIntegrationTest(unittest.TestCase):
         )
         revision_id = job.json()["result_revision_id"]
         revs = RevisionRepository()
-        pool = DatabasePool(DatabaseSettings(url=self.db_url))
-        with pool.connection() as conn:
+        with self.pool.connection() as conn:
             rev = revs.get_revision(conn, uuid.UUID(revision_id))
-        pool.close()
         assert rev is not None
         scene_path = self.artifact_root / rev.scene_uri
         scene_path.unlink()
@@ -465,10 +452,8 @@ class UploadJobsIntegrationTest(unittest.TestCase):
         )
         self.assertEqual(scene.status_code, 404)
         self.assertEqual(scene.json()["code"], "missing_artifact")
-        pool = DatabasePool(DatabaseSettings(url=self.db_url))
-        with pool.connection() as conn:
+        with self.pool.connection() as conn:
             rows = revs.list_for_document(conn, uuid.UUID(document_id))
-        pool.close()
         self.assertEqual(len(rows), 1)
 
     def test_image_too_large(self) -> None:

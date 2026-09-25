@@ -34,3 +34,28 @@ topology:
   min_hypothesis_margin: 0.15
   elbow_angle_min_deg: 55.0
   elbow_angle_max_deg: 130.0
+ocr:
+  model_id: microsoft/trocr-base-handwritten
+  model_revision: null
+  min_confidence: 0.45
+  conflict_margin: 0.08
+  crop_padding_px: 6
+  deskew_enabled: true
+  context_radius_px: 48.0
+  vocabulary_terms:
+    - NPT
+    - valve
+    - main
+    - drop
+    - clamp
+    - strut
+    - flange
+    - elbow
+    - tee
+    - connection
+    - threaded
+  abbreviations:
+    conn: connection
+    conn.: connection
+    thrd: threaded
+    maint: maintenance

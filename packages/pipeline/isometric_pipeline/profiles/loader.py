@@ -13,6 +13,19 @@ _PROFILES_DIR = _REPO_ROOT / "profiles"
 
 
 @dataclass(frozen=True)
+class OcrProfile:
+    model_id: str
+    model_revision: str | None
+    min_confidence: float
+    conflict_margin: float
+    crop_padding_px: int
+    deskew_enabled: bool
+    context_radius_px: float
+    vocabulary_terms: tuple[str, ...]
+    abbreviations: MappingProxyType[str, str]
+
+
+@dataclass(frozen=True)
 class TopologyProfile:
     endpoint_cluster_tolerance_px: float
     max_endpoint_angle_delta_deg: float
@@ -62,6 +75,28 @@ class PipingIsometricProfile:
     geometry: GeometryProfile
     snapping: SnappingProfile
     topology: TopologyProfile
+    ocr: OcrProfile
+
+
+def _ocr_from_mapping(data: dict[str, object]) -> OcrProfile:
+    terms_raw = data.get("vocabulary_terms", [])
+    if not isinstance(terms_raw, list):
+        raise ValueError("ocr.vocabulary_terms must be a list")
+    abbrev_raw = data.get("abbreviations", {})
+    if not isinstance(abbrev_raw, dict):
+        raise ValueError("ocr.abbreviations must be a mapping")
+    revision = data.get("model_revision")
+    return OcrProfile(
+        model_id=str(data["model_id"]),
+        model_revision=str(revision) if revision is not None else None,
+        min_confidence=float(data["min_confidence"]),
+        conflict_margin=float(data["conflict_margin"]),
+        crop_padding_px=int(data["crop_padding_px"]),
+        deskew_enabled=bool(data["deskew_enabled"]),
+        context_radius_px=float(data["context_radius_px"]),
+        vocabulary_terms=tuple(str(t) for t in terms_raw),
+        abbreviations=MappingProxyType({str(k): str(v) for k, v in abbrev_raw.items()}),
+    )
 
 
 def _topology_from_mapping(data: dict[str, object]) -> TopologyProfile:
@@ -127,11 +162,15 @@ def _load_yaml_profile(path: Path) -> PipingIsometricProfile:
     topology_raw = raw.get("topology")
     if not isinstance(topology_raw, dict):
         raise ValueError(f"profile topology section missing: {path}")
+    ocr_raw = raw.get("ocr")
+    if not isinstance(ocr_raw, dict):
+        raise ValueError(f"profile ocr section missing: {path}")
     return PipingIsometricProfile(
         version=version,
         geometry=_geometry_from_mapping(geometry_raw),
         snapping=_snapping_from_mapping(snapping_raw),
         topology=_topology_from_mapping(topology_raw),
+        ocr=_ocr_from_mapping(ocr_raw),
     )
 
 

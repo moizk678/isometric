@@ -14,7 +14,12 @@ class DatabaseSettings:
 
 
 def resolve_database_url() -> str:
-    """Return the direct Postgres URL for the Supabase Cloud project."""
+    """Return the Postgres URL for the Supabase Cloud project.
+
+    Works with direct/session (:5432) and transaction pooler (:6543) URLs.
+    The connection pool disables psycopg prepared statements so transaction
+    pooler mode remains safe.
+    """
     from isometric_persistence.env_files import load_repo_dotenv
 
     load_repo_dotenv()
