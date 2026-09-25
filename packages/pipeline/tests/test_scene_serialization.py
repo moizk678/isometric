@@ -70,6 +70,16 @@ def _minimal_scene_dict() -> dict:
     }
 
 
+def _segments_intersect(a, b) -> bool:
+    def orient(p, q, r) -> float:
+        return (q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x)
+
+    return (
+        orient(a.start, a.end, b.start) * orient(a.start, a.end, b.end) < 0
+        and orient(b.start, b.end, a.start) * orient(b.start, b.end, a.end) < 0
+    )
+
+
 def _assert_round_trip_stable(test: unittest.TestCase, scene: DrawingScene) -> None:
     first = dump_scene(scene)
     second = dump_scene(load_scene(first))
@@ -105,6 +115,27 @@ class SceneSerializationTest(unittest.TestCase):
         }
         self.assertEqual(after, before)
         self.assertEqual(len(after), 4)
+
+    def test_crossing_pipes_share_no_node_after_round_trip(self):
+        raw = (VALID / "crossing-unconnected.json").read_text(encoding="utf-8")
+        scene = load_scene(dump_scene(load_scene(raw)))
+        pipes = [obj for obj in scene.objects if obj.type == "pipe_segment"]
+        self.assertEqual(len(pipes), 2)
+        first, second = pipes
+        self.assertTrue(
+            _segments_intersect(first.primitive, second.primitive),
+            "fixture pipes must geometrically cross",
+        )
+        self.assertEqual(
+            {first.start_node_id, first.end_node_id}
+            & {second.start_node_id, second.end_node_id},
+            set(),
+        )
+        self.assertFalse(
+            any(obj.type == "symbol" for obj in scene.objects),
+            "no symbol port may join the crossing pipes",
+        )
+        self.assertEqual(scene.relationships, [])
 
     def test_check_version_rejects_2_0_and_1_1(self):
         base = json.loads((VALID / "connected-route.json").read_text(encoding="utf-8"))

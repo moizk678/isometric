@@ -8,6 +8,7 @@ from isometric_pipeline.scene import (
     SceneValidationError,
     validate_scene,
 )
+from pydantic import ValidationError
 
 IDENTITY = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
 ZERO = [0.0] * 9
@@ -548,6 +549,22 @@ class RelationshipTest(InvariantTestCase):
             scene(objects, [rel("measures", J1, SYMBOL)]),
             IssueCode.RELATIONSHIP_CONNECTIVITY_FORBIDDEN,
         )
+
+    def test_every_connectivity_pair_and_type_is_forbidden(self):
+        objects = route() + [symbol({"inlet": J1, "outlet": J2})]
+        ends = {"pipe_segment": PIPE, "junction": J1, "symbol": SYMBOL}
+        for type_ in ("annotates", "measures", "callout_targets"):
+            for from_type, from_id in ends.items():
+                for to_type, to_id in ends.items():
+                    with self.subTest(type=type_, pair=(from_type, to_type)):
+                        self.assertCodes(
+                            scene(objects, [rel(type_, from_id, to_id)]),
+                            IssueCode.RELATIONSHIP_CONNECTIVITY_FORBIDDEN,
+                        )
+
+    def test_relationship_type_outside_the_enum_is_rejected(self):
+        with self.assertRaises(ValidationError):
+            scene(route(), [rel("connects", J1, J2)])
 
     def test_annotates_must_come_from_an_annotation(self):
         objects = route() + [mark()]

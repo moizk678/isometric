@@ -25,6 +25,8 @@ Individual checks:
 
 ## Layout and data
 
+The [DrawingScene contract](docs/scene-contract.md) documents coordinate spaces, invariants, issue codes, and schema tooling for Run 01.
+
 `apps/web` is the future Next.js workbench; `services/api` and `services/worker` are future Python services; `packages/pipeline` and `packages/evaluation` hold shared conversion and evidence code. `profiles`, `supabase/migrations`, and `infra/local` are reserved for their later bounded runs. No placeholder service currently listens on a port.
 
 The [dataset contract](packages/evaluation/datasets/README.md), [labeling rules](packages/evaluation/datasets/LABELING_GUIDE.md), and [metric definitions](packages/evaluation/datasets/METRICS.md) guide future evaluation. Four tiny images in `packages/evaluation/fixtures/synthetic` are generated contract fixtures, never real-sketch accuracy evidence. The [data inventory](docs/DATA_INVENTORY.md) records two **unlabeled** real samples kept privately and out of Git. Do not commit `.private/`, source crops, secrets, or real drawings.
