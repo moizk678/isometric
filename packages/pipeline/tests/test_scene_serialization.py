@@ -159,6 +159,33 @@ class SceneSerializationTest(unittest.TestCase):
             load_scene(raw)
         self.assertIn(IssueCode.NON_FINITE_NUMBER, ctx.exception.codes)
 
+    def test_malformed_wire_data_raises_schema_invalid(self):
+        raw = (VALID / "connected-route.json").read_text(encoding="utf-8")
+        cases = {
+            "truncated": raw[:-5],
+            "invalid_utf8": b"\xff\xfe{}",
+            "bom": "\ufeff" + raw,
+            "too_deep": "[" * 100_000 + "]" * 100_000,
+        }
+        for name, data in cases.items():
+            with self.subTest(case=name):
+                with self.assertRaises(SceneValidationError) as ctx:
+                    load_scene(data)
+                self.assertEqual(ctx.exception.codes, (IssueCode.SCHEMA_INVALID,))
+
+    def test_duplicate_json_keys_are_rejected(self):
+        raw = (VALID / "connected-route.json").read_text(encoding="utf-8")
+        duplicated = raw.replace(
+            '"schemaVersion": "1.0"',
+            '"schemaVersion": "9.0",\n  "schemaVersion": "1.0"',
+            1,
+        )
+        self.assertNotEqual(duplicated, raw)
+        with self.assertRaises(SceneValidationError) as ctx:
+            load_scene(duplicated)
+        self.assertEqual(ctx.exception.codes, (IssueCode.SCHEMA_INVALID,))
+        self.assertIn("schemaVersion", ctx.exception.issues[0].message)
+
     def test_unknown_object_type_raises_schema_invalid(self):
         raw = (INVALID / "unknown-object-type.json").read_text(encoding="utf-8")
         with self.assertRaises(SceneValidationError) as ctx:

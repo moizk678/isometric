@@ -237,6 +237,28 @@ class ValidScenesTest(InvariantTestCase):
         self.assertValid(scene(objects))
 
 
+class VersionAndOptionsTest(InvariantTestCase):
+    def test_unsupported_version_is_rejected_without_load_scene(self):
+        for version in ("2.0", "1.1", "0.9"):
+            with self.subTest(schemaVersion=version):
+                value = scene()
+                value.schema_version = version
+                issues = self.issues(value)
+                self.assertEqual(
+                    [i.code for i in issues], [IssueCode.VERSION_UNSUPPORTED]
+                )
+                self.assertEqual(issues[0].path, "schemaVersion")
+
+    def test_endpoint_tolerance_must_be_finite_and_non_negative(self):
+        objects = route()
+        objects[2]["primitive"]["start"] = xy(51.0, 100.0)
+        for tolerance in (math.nan, math.inf, -1.0):
+            with self.subTest(tolerance=tolerance):
+                with self.assertRaises(ValueError) as ctx:
+                    validate_scene(scene(objects), endpoint_tolerance_px=tolerance)
+                self.assertNotIsInstance(ctx.exception, SceneValidationError)
+
+
 class NumberAndCoordinateTest(InvariantTestCase):
     def test_non_finite_point_is_reported_without_follow_on_issues(self):
         value = scene()

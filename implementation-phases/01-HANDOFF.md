@@ -7,7 +7,7 @@
 ## Delivered
 
 - **DrawingScene v1.0** Pydantic models under `packages/pipeline/isometric_pipeline/scene/` with cross-object invariants in `validate_scene`, version checks in `check_version`, and stable issue codes in `errors.py`.
-- **Generated contract artifacts:** JSON Schema at `packages/scene-schema/drawing-scene.schema.json`, TypeScript types at `packages/scene-schema/src/drawing-scene.ts`, and exported fixture JSON under `packages/scene-schema/fixtures/`. Regeneration is deterministic via `isometric_pipeline.scene.generate`.
+- **Generated contract artifacts:** JSON Schema at `packages/scene-schema/drawing-scene.schema.json`, TypeScript types at `packages/scene-schema/src/drawing-scene.ts`, and typed fixture exports at `packages/scene-schema/test/fixtures.generated.ts` (built from the hand-written JSON under `packages/scene-schema/fixtures/valid/`). Regeneration is deterministic via `isometric_pipeline.scene.generate`.
 - **Serialization:** `load_scene` and `dump_scene` in `isometric_pipeline.scene` (canonical JSON, byte-stable round trips on valid fixtures).
 - **Fixtures:** six valid scenes and ten invalid stems (expected primary codes in `packages/scene-schema/fixtures/expected.json`).
 - **Contract note:** [docs/scene-contract.md](../docs/scene-contract.md), linked from [README.md](../README.md).
@@ -33,7 +33,7 @@
 
 ## Data used
 
-- **Synthetic scene fixtures only** under `packages/scene-schema/fixtures/` (and Python builders in `packages/pipeline/isometric_pipeline/scene/fixtures/`). These establish contract behavior, not real-sketch accuracy.
+- **Synthetic scene fixtures only** under `packages/scene-schema/fixtures/` (plus inline scene builders in `packages/pipeline/tests/`). These establish contract behavior, not real-sketch accuracy.
 - Run 00 synthetic PNG evidence fixtures unchanged; no real drawings were used in scene tests.
 
 ## Schema paths and fixture IDs

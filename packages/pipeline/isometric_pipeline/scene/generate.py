@@ -24,10 +24,10 @@ import sys
 import tempfile
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
 
+from .errors import SceneValidationError
 from .models import DrawingScene
-from .serialization import dump_scene
+from .serialization import dump_scene, load_scene
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 PACKAGE_DIR = REPO_ROOT / "packages" / "scene-schema"
@@ -70,20 +70,17 @@ def _camel_name(stem: str) -> str:
     return name
 
 
-def _reject_constant(token: str) -> Any:
-    raise GenerationError(f"non-finite number {token} in fixture")
-
-
 def fixtures_text(fixtures_dir: Path) -> str:
     paths = sorted(fixtures_dir.glob("*.json"))
     if not paths:
         raise GenerationError(f"no valid fixtures in {fixtures_dir}")
     blocks = [FIXTURES_HEADER]
     for path in paths:
-        raw = json.loads(
-            path.read_text(encoding="utf-8"), parse_constant=_reject_constant
-        )
-        canonical = dump_scene(DrawingScene.model_validate(raw)).rstrip("\n")
+        try:
+            scene = load_scene(path.read_text(encoding="utf-8"))
+        except SceneValidationError as exc:
+            raise GenerationError(f"{path.name} is not a valid scene: {exc}") from None
+        canonical = dump_scene(scene).rstrip("\n")
         blocks.append(
             f"export const {_camel_name(path.stem)}: DrawingScene = {canonical};\n"
         )

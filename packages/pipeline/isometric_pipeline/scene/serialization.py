@@ -11,7 +11,7 @@ from pydantic import ValidationError
 
 from .errors import IssueCode, SceneIssue, SceneValidationError
 from .models import DrawingScene
-from .validation import validate_scene
+from .validation import SymbolCatalog, validate_scene
 from .versioning import check_version
 
 
@@ -83,32 +83,54 @@ def _normalize_negative_zero(value: Any) -> Any:
     return value
 
 
+def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"duplicate object key {key!r}")
+        result[key] = value
+    return result
+
+
+def _parse_error(message: str) -> SceneValidationError:
+    return SceneValidationError(
+        [
+            SceneIssue(
+                code=IssueCode.SCHEMA_INVALID,
+                path="$",
+                object_id=None,
+                message=message,
+            )
+        ]
+    )
+
+
 def _parse_wire_data(data: str | bytes | Mapping[str, Any]) -> Any:
-    if isinstance(data, (str, bytes)):
+    if not isinstance(data, (str, bytes)):
+        return data
+    try:
         text = data.decode("utf-8") if isinstance(data, bytes) else data
-        return json.loads(text, parse_constant=_json_constant)
-    return data
+        return json.loads(
+            text,
+            parse_constant=_json_constant,
+            object_pairs_hook=_reject_duplicate_keys,
+        )
+    except RecursionError:
+        raise _parse_error("JSON nesting is too deep") from None
+    except ValueError as exc:
+        raise _parse_error(f"invalid JSON: {exc}") from None
 
 
 def load_scene(
     data: str | bytes | Mapping[str, Any],
     *,
-    catalog=None,
+    catalog: SymbolCatalog | None = None,
     endpoint_tolerance_px: float = 1e-6,
 ) -> DrawingScene:
     """Parse wire JSON (or a mapping), validate, and run scene invariants."""
     raw = _parse_wire_data(data)
     if not isinstance(raw, dict):
-        raise SceneValidationError(
-            [
-                SceneIssue(
-                    code=IssueCode.SCHEMA_INVALID,
-                    path="$",
-                    object_id=None,
-                    message="scene document must be a JSON object",
-                )
-            ]
-        )
+        raise _parse_error("scene document must be a JSON object")
 
     non_finite = _collect_non_finite(raw)
     if non_finite:

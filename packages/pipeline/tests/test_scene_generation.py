@@ -65,6 +65,16 @@ class SceneGenerationTest(unittest.TestCase):
         self.assertEqual(exported, [generate._camel_name(stem) for stem in stems])
         self.assertIn("connectedRoute", exported)
 
+    def test_fixture_failing_invariants_is_not_exported(self):
+        fixtures = Path(tempfile.mkdtemp(dir=self._tmp.name))
+        source = generate.PACKAGE_DIR / generate.VALID_FIXTURES / "connected-route.json"
+        data = json.loads(source.read_text(encoding="utf-8"))
+        pipe = next(obj for obj in data["objects"] if obj["type"] == "pipe_segment")
+        pipe["primitive"]["start"]["x"] += 25.0
+        (fixtures / "connected-route.json").write_text(json.dumps(data))
+        with self.assertRaisesRegex(generate.GenerationError, "PIPE_ENDPOINT_MISMATCH"):
+            generate.fixtures_text(fixtures)
+
     def test_stale_copy_is_detected(self):
         for relative in generate.GENERATED_FILES:
             with self.subTest(file=str(relative)):

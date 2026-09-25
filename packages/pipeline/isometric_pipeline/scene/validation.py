@@ -1,7 +1,7 @@
 """Cross-object invariants that a JSON Schema cannot express.
 
-``validate_scene`` runs every check and raises one ``SceneValidationError``
-holding all issues. Checks run in a fixed pass order and each pass walks the
+``validate_scene`` runs every check, including the schema version, and raises
+one ``SceneValidationError`` holding all issues. Checks run in a fixed pass order and each pass walks the
 scene in document order, so the issue order is stable for a given scene.
 """
 
@@ -29,6 +29,7 @@ from .models import (
     SourcePoint,
     SymbolObject,
 )
+from .versioning import is_supported_version
 
 INVERSE_TOLERANCE = 1e-9
 
@@ -76,7 +77,19 @@ def validate_scene(
     endpoint_tolerance_px: float = 1e-6,
 ) -> None:
     """Raise ``SceneValidationError`` with every invariant the scene violates."""
+    if not (math.isfinite(endpoint_tolerance_px) and endpoint_tolerance_px >= 0):
+        raise ValueError(
+            f"endpoint_tolerance_px must be finite and >= 0, "
+            f"got {endpoint_tolerance_px}"
+        )
     out = _Collector()
+    if not is_supported_version(scene.schema_version):
+        out.add(
+            IssueCode.VERSION_UNSUPPORTED,
+            "schemaVersion",
+            None,
+            f"unsupported schema version {scene.schema_version!r}",
+        )
     _check_values(scene, out)
     _check_transforms(scene, out)
     index = _index_ids(scene, out)

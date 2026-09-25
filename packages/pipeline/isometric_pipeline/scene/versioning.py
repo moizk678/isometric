@@ -33,6 +33,25 @@ def _version_unsupported(
     )
 
 
+def _parse_supported(version: str) -> tuple[int, int] | None:
+    parts = version.split(".")
+    if len(parts) != 2:
+        return None
+    try:
+        major = int(parts[0], 10)
+        minor = int(parts[1], 10)
+    except ValueError:
+        return None
+    if major != _SUPPORTED_MAJOR or minor > _SUPPORTED_MINOR:
+        return None
+    return major, minor
+
+
+def is_supported_version(version: str) -> bool:
+    """True when this code can read ``version`` (same major, minor not newer)."""
+    return _parse_supported(version) is not None
+
+
 def check_version(raw: Mapping[str, Any]) -> dict[str, Any]:
     """Validate ``schemaVersion``, migrate if needed, return data for Pydantic."""
     data = copy.deepcopy(dict(raw))
@@ -60,22 +79,11 @@ def check_version(raw: Mapping[str, Any]) -> dict[str, Any]:
             ]
         )
 
-    parts = version.split(".")
-    if len(parts) != 2:
+    parsed = _parse_supported(version)
+    if parsed is None:
         raise _version_unsupported(version)
 
-    try:
-        major = int(parts[0], 10)
-        minor = int(parts[1], 10)
-    except ValueError:
-        raise _version_unsupported(version) from None
-
-    if major != _SUPPORTED_MAJOR:
-        raise _version_unsupported(version)
-    if minor > _SUPPORTED_MINOR:
-        raise _version_unsupported(version)
-
-    migrate = MIGRATIONS.get((major, minor))
+    migrate = MIGRATIONS.get(parsed)
     if migrate is not None:
         data = migrate(data)
 

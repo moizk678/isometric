@@ -35,7 +35,7 @@ Every object and relationship carries an **`interpretation`**: `state` (`machine
 
 Connectivity is expressed **only** by:
 
-- pipe **`startNodeId` / `endNodeId`** referencing junction objects, with endpoints coinciding with junction **`position`** within tolerance (default **1e−6 px**, overridable via `endpoint_tolerance_px` on `validate_scene` / `load_scene`), and
+- pipe **`startNodeId` / `endNodeId`** referencing junction objects, with endpoints coinciding with junction **`position`** within tolerance (default **1e−6 px**, overridable via `endpoint_tolerance_px` on `validate_scene` / `load_scene`; it must be finite and non-negative), and
 - symbol **`portNodeIds`**: port name → junction ID, or **`null`** when a port is explicitly unresolved (see below).
 
 **Relationships must not encode a second connectivity graph.** If both ends of a relationship resolve to a `pipe_segment`, `junction`, or `symbol`, validation raises `RELATIONSHIP_CONNECTIVITY_FORBIDDEN`. Semantic links use types `annotates`, `measures`, and `callout_targets` from annotations or dimensions to other objects.
@@ -45,10 +45,10 @@ A **geometric crossing** may remain **disconnected**: two pipes can intersect in
 ## Versioning and migration
 
 - **`schemaVersion`** is a `"major.minor"` string; the supported contract is **`1.0`** (`SCENE_SCHEMA_VERSION`).
-- **`check_version`** rejects an unknown **major** (anything other than `1`) or a **minor greater than** the supported minor (`0`). Missing or malformed `schemaVersion` is `SCHEMA_INVALID`.
+- **`check_version`** rejects an unknown **major** (anything other than `1`), a **minor greater than** the supported minor (`0`), or a string that is not `major.minor` with `VERSION_UNSUPPORTED`. A missing or non-string `schemaVersion` is `SCHEMA_INVALID`. **`validate_scene`** applies the same supported-version rule, so a scene built directly in Python cannot bypass it.
 - **`MIGRATIONS`** is an empty registry at `1.0`. Future **meaning-changing** schema edits must register an explicit migration function keyed by `(major, minor)` rather than silently rewriting wire data.
 
-`load_scene` runs: finite-number scan → `check_version` → Pydantic → `validate_scene`.
+`load_scene` runs: strict JSON parse → finite-number scan → `check_version` → Pydantic → `validate_scene`. Malformed JSON, invalid UTF-8, duplicate object keys, and excessive nesting all raise `SceneValidationError` with `SCHEMA_INVALID`.
 
 ## ID stability
 
@@ -64,8 +64,8 @@ Architecture §5 shows `portNodeIds` as name → junction ID. Run 01 extends tha
 
 | Code | When it is raised |
 | --- | --- |
-| `SCHEMA_INVALID` | Wire JSON is not an object, Pydantic schema violation, or invalid/missing `schemaVersion` shape (non-version cases). |
-| `VERSION_UNSUPPORTED` | Unsupported `schemaVersion` major or minor newer than supported. |
+| `SCHEMA_INVALID` | Wire data is not parseable JSON (including duplicate keys) or not an object, Pydantic schema violation, or missing / non-string `schemaVersion`. |
+| `VERSION_UNSUPPORTED` | `schemaVersion` is not `major.minor`, has an unsupported major, or has a minor newer than supported. |
 | `NON_FINITE_NUMBER` | `NaN`, `Infinity`, or non-finite float anywhere in the document (including pre-Pydantic JSON parse). |
 | `COORDINATE_OUT_OF_BOUNDS` | A `PagePoint` or `SourcePoint` lies outside its page or source rectangle. |
 | `TRANSFORM_SINGULAR` | A page transform matrix has determinant zero. |
