@@ -10,12 +10,23 @@ from typing import Any
 from isometric_persistence.artifacts import ArtifactStore
 from isometric_persistence.db import DatabasePool
 from isometric_persistence.errors import ConflictError, PersistenceError
+from isometric_persistence.keys import (
+    document_display_key,
+    document_normalize_metadata_key,
+    document_page_key,
+    job_stage_artifact_key,
+)
 from isometric_persistence.publishing import PublishExport, RevisionPublisher
 from isometric_persistence.repositories.documents import DocumentRepository
 from isometric_persistence.repositories.jobs import JobRepository
 from isometric_persistence.repositories.revisions import (
     RevisionRepository,
     SceneRevisionRow,
+)
+from isometric_pipeline.normalize.page import (
+    NormalizeLimits,
+    NormalizePageError,
+    normalize_page,
 )
 from isometric_pipeline.render import (
     STYLE_PROFILE_VERSION,
@@ -36,6 +47,7 @@ from .fixture_fit import (
     read_source_frame,
 )
 from .queue import JobQueue
+from .stages import NORMALIZE_PAGE_VERSION, STAGE_FIXTURE_PROCESS, STAGE_NORMALIZE_PAGE
 
 FIXTURE_SCENE = (
     Path(__file__).resolve().parents[3]
@@ -131,6 +143,89 @@ def _complete_if_revision_exists(
         return True
 
 
+def _execute_normalize_page(
+    pool: DatabasePool,
+    store: ArtifactStore,
+    jobs: JobRepository,
+    *,
+    job_id: uuid.UUID,
+    document_id: uuid.UUID,
+    source_bytes: bytes,
+    input_hash: str,
+    queue: JobQueue | None,
+) -> bool:
+    """Run normalize_page and persist artifacts. Returns False if the job stopped."""
+    display_key = document_display_key(document_id)
+    page_key = document_page_key(document_id)
+    meta_key = document_normalize_metadata_key(document_id)
+
+    try:
+        normalized = normalize_page(
+            source_bytes,
+            limits=NormalizeLimits(),
+            display_uri=display_key,
+            page_uri=page_key,
+        )
+    except NormalizePageError as err:
+        with pool.connection() as conn:
+            jobs.mark_failed(conn, job_id, err.code)
+            conn.commit()
+        return False
+    except Exception:
+        with pool.connection() as conn:
+            jobs.mark_failed(conn, job_id, "processing_invalid")
+            conn.commit()
+        return False
+
+    with pool.connection() as conn:
+        job = jobs.get(conn, job_id)
+        if job is None or job.cancel_requested or job.result_revision_id is not None:
+            if job and job.cancel_requested:
+                jobs.mark_canceled(conn, job_id)
+                conn.commit()
+            return False
+
+    try:
+        store.write_immutable(display_key, normalized.display_png)
+        store.write_immutable(page_key, normalized.page_png)
+        meta_bytes = json.dumps(
+            normalized.metadata.to_wire(),
+            separators=(",", ":"),
+            ensure_ascii=False,
+        ).encode("utf-8")
+        store.write_immutable(meta_key, meta_bytes)
+        overlay_key = (
+            f"{job_stage_artifact_key(job_id, STAGE_NORMALIZE_PAGE, normalized.content_hash)}"
+            "/corner-overlay.png"
+        )
+        store.write_immutable(overlay_key, normalized.overlay_png)
+    except (OSError, PersistenceError):
+        _retry_or_exhaust(pool, jobs, job_id, queue)
+        return False
+
+    metrics: dict[str, Any] = {key: value for key, value in normalized.metrics.items()}
+    with pool.connection() as conn:
+        job = jobs.get(conn, job_id)
+        if job is None or job.cancel_requested or job.result_revision_id is not None:
+            if job and job.cancel_requested:
+                jobs.mark_canceled(conn, job_id)
+                conn.commit()
+            return False
+        jobs.insert_stage_run(
+            conn,
+            job_id=job_id,
+            stage=STAGE_NORMALIZE_PAGE,
+            status=normalized.status,
+            input_hash=input_hash,
+            producer_version=NORMALIZE_PAGE_VERSION,
+            artifact_uri=meta_key,
+            metrics=metrics,
+            warnings=normalized.warnings,
+        )
+        conn.commit()
+    return True
+
+
 def process_job(
     pool: DatabasePool,
     store: ArtifactStore,
@@ -184,6 +279,18 @@ def process_job(
             conn.commit()
         return
 
+    if not _execute_normalize_page(
+        pool,
+        store,
+        jobs,
+        job_id=job_id,
+        document_id=document_id,
+        source_bytes=source_bytes,
+        input_hash=claimed.input_hash,
+        queue=queue,
+    ):
+        return
+
     try:
         scene_bytes, review_items = _fitted_scene(
             source_bytes, document_id, revision_id
@@ -208,7 +315,7 @@ def process_job(
         jobs.insert_stage_run(
             conn,
             job_id=job_id,
-            stage="fixture_process",
+            stage=STAGE_FIXTURE_PROCESS,
             status="running",
             input_hash=job.input_hash,
             producer_version=PIPELINE_VERSION,
@@ -262,7 +369,7 @@ def process_job(
                 jobs.insert_stage_run(
                     conn,
                     job_id=job_id,
-                    stage="fixture_process",
+                    stage=STAGE_FIXTURE_PROCESS,
                     status="succeeded",
                     input_hash=job.input_hash,
                     producer_version=PIPELINE_VERSION,

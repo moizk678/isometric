@@ -10,7 +10,7 @@ Update this file after a run's exit criteria pass. `planned` is not `complete`; 
 | 03 | complete | [handoff](03-HANDOFF.md) | Migrations, repositories, and artifact store verified locally; cloud migration on project `bhezwfoifroyidfwdvcy`. |
 | 04 | complete | [handoff](04-HANDOFF.md) | Upload/jobs API exit checks: lease recovery, idempotent revision per job, error classes, progress/review_state; `./scripts/test-api` passes. |
 | 05 | complete | [handoff](05-HANDOFF.md) | Upload, job, and review UI verified by `./scripts/check` with 26 Playwright tests (keyboard, touch, 1440/390/320/200% zoom, upload retry, axe); `/display` is an EXIF stand-in until Run 06. |
-| 06 | planned | — | |
+| 06 | complete | [handoff](06-HANDOFF.md) | `normalize_page` stage, document display/page artifacts, `/display` cache + EXIF fallback; fixture scene publish unchanged. |
 | 07 | planned | — | |
 | 08 | planned | — | |
 | 09 | planned | — | |

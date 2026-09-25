@@ -15,6 +15,10 @@ from fastapi.testclient import TestClient
 from isometric_api.app import create_app
 from isometric_persistence.config import DatabaseSettings
 from isometric_persistence.db import DatabasePool
+from isometric_persistence.keys import (
+    document_display_key,
+    document_normalize_metadata_key,
+)
 from isometric_persistence.migrate import apply_migrations
 from PIL import Image
 
@@ -281,6 +285,27 @@ class ApiFollowupsTest(unittest.TestCase):
         with Image.open(io.BytesIO(display.content)) as png:
             self.assertEqual(png.format, "PNG")
             self.assertEqual(png.size, (20, 10))
+
+    def test_display_served_from_normalize_artifact_after_upload(self) -> None:
+        owner = f"display-cache-{uuid.uuid4()}"
+        created = self._upload(owner=owner)
+        self.assertEqual(created.status_code, 202)
+        document_id = uuid.UUID(created.json()["document_id"])
+        display_path = self.artifact_root / document_display_key(document_id).replace(
+            "/", os.sep
+        )
+        meta_path = self.artifact_root / document_normalize_metadata_key(
+            document_id
+        ).replace("/", os.sep)
+        self.assertTrue(display_path.is_file(), "worker should write display.png")
+        self.assertTrue(meta_path.is_file(), "worker should write normalize.json")
+        cached = display_path.read_bytes()
+        display = self.client.get(
+            f"/api/v1/documents/{document_id}/display",
+            headers=self._headers(owner),
+        )
+        self.assertEqual(display.status_code, 200)
+        self.assertEqual(display.content, cached)
 
     def test_display_is_owner_scoped(self) -> None:
         owner = f"display-owner-{uuid.uuid4()}"

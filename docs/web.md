@@ -110,9 +110,11 @@ All paths are requested as `/api/v1/...` from the browser (proxied to FastAPI).
 
 `GET /documents/{id}/source` returns raw stored bytes; the workbench uses **`/display`** instead.
 
-### Display image (EXIF stand-in)
+### Display image
 
-`GET /documents/{id}/display` reads the stored source artifact and returns a PNG after `ImageOps.exif_transpose`. That matches **display** pixel dimensions in the scene (`page.displayWidthPx` / `displayHeightPx`) and the `page.sourceToDisplay` matrix. Run 06 may replace or extend this with a dedicated normalized artifact; until then, treat `/display` as the contract for the original viewer.
+`GET /documents/{id}/display` returns the worker-produced **display** PNG at `documents/{id}/display.png` when normalization has run (same bytes as EXIF-oriented display for typical uploads). If that artifact is missing (legacy jobs or partial failures), the API falls back to transposing the stored source with `ImageOps.exif_transpose` and encoding PNG on the fly.
+
+The response matches **display** pixel dimensions in the scene (`page.displayWidthPx` / `displayHeightPx`) and the `page.sourceToDisplay` matrix used by the original viewer.
 
 ## Coordinate mapping and viewers
 

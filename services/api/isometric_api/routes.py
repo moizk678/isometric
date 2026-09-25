@@ -11,7 +11,7 @@ from typing import Any
 from fastapi import APIRouter, File, Form, Header, Query, Request, UploadFile
 from fastapi.responses import Response
 from isometric_persistence.errors import PersistenceError
-from isometric_persistence.keys import document_original_key
+from isometric_persistence.keys import document_display_key, document_original_key
 from isometric_persistence.repositories.documents import DocumentRepository
 from isometric_persistence.repositories.jobs import JobRepository
 from isometric_persistence.repositories.revisions import RevisionRepository
@@ -340,6 +340,15 @@ def get_document_display(request: Request, document_id: uuid.UUID) -> Response:
         if doc is None:
             raise ApiError(404, "not_found", "document not found")
         _ensure_owner(doc.owner_id, owner_id)
+    display_key = document_display_key(document_id)
+    try:
+        data = state.store.read(display_key)
+        return Response(content=data, media_type="image/png")
+    except FileNotFoundError:
+        pass
+    except PersistenceError as exc:
+        if exc.code not in {"invalid_artifact_key", "artifact_not_found"}:
+            raise
     data = _read_artifact(state, doc.source_uri)
     with Image.open(io.BytesIO(data)) as image:
         transposed = ImageOps.exif_transpose(image)

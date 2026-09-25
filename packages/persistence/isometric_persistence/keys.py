@@ -9,6 +9,18 @@ def document_original_key(document_id: uuid.UUID) -> str:
     return f"documents/{document_id}/original"
 
 
+def document_display_key(document_id: uuid.UUID) -> str:
+    return f"documents/{document_id}/display.png"
+
+
+def document_page_key(document_id: uuid.UUID) -> str:
+    return f"documents/{document_id}/page.png"
+
+
+def document_normalize_metadata_key(document_id: uuid.UUID) -> str:
+    return f"documents/{document_id}/normalize.json"
+
+
 def job_stage_artifact_key(job_id: uuid.UUID, stage: str, content_hash: str) -> str:
     return f"jobs/{job_id}/stages/{stage}/{content_hash}"
 
