@@ -7,7 +7,7 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "test": "node --test test/foundation.test.mjs && vitest run",
+    "test": "node --test test/foundation.test.mjs && tsc --noEmit && vitest run",
     "test:unit": "vitest run",
     "gen:api": "node scripts/gen-api.mjs"
   },

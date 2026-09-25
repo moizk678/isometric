@@ -16,6 +16,11 @@ export type JobPollingState = {
   refresh: () => Promise<void>;
 };
 
+/** Network failures, timeouts, rate limits, and 5xx may clear up; 403/404 will not. */
+function isTransientError(error: ApiError): boolean {
+  return error.status === 0 || error.status === 408 || error.status === 429 || error.status >= 500;
+}
+
 function computeStale(job: JobResponse, unchangedSince: number | null): boolean {
   if (isTerminalJobState(job.state)) {
     return false;
@@ -56,17 +61,17 @@ export function useJobPolling(jobId: string): JobPollingState {
     setJob(next);
   }, []);
 
-  const fetchJob = useCallback(async (): Promise<JobResponse | null> => {
+  const fetchJob = useCallback(async (): Promise<JobResponse | ApiError> => {
     try {
       const next = await getJob(jobId);
       setError(null);
       applyJob(next);
       return next;
     } catch (err) {
-      setError(
-        err instanceof ApiError ? err : new ApiError(0, 'unknown_error', 'Could not load job', null),
-      );
-      return null;
+      const apiError =
+        err instanceof ApiError ? err : new ApiError(0, 'unknown_error', 'Could not load job', null);
+      setError(apiError);
+      return apiError;
     } finally {
       setLoading(false);
     }
@@ -97,7 +102,7 @@ export function useJobPolling(jobId: string): JobPollingState {
       if (cancelled) {
         return;
       }
-      if (!next || isTerminalJobState(next.state)) {
+      if (next instanceof ApiError ? !isTransientError(next) : isTerminalJobState(next.state)) {
         return;
       }
       pollDelayRef.current = Math.min(pollDelayRef.current * 1.5, MAX_POLL_MS);

@@ -35,6 +35,9 @@ from .upload import sanitize_original_filename, validate_upload
 
 router = APIRouter(prefix="/api/v1", responses=error_responses(400, 401, 500))
 _OWNED = error_responses(403, 404)
+_SVG_EXPORT_CSP = "default-src 'none'; style-src 'unsafe-inline'"
+# Modes Pillow can write as PNG; anything else (e.g. CMYK JPEG) is converted to RGB.
+_PNG_MODES = frozenset({"1", "L", "LA", "I", "I;16", "P", "RGB", "RGBA"})
 
 
 def _maybe_run_worker(request: Request) -> None:
@@ -342,6 +345,8 @@ def get_document_display(request: Request, document_id: uuid.UUID) -> Response:
         transposed = ImageOps.exif_transpose(image)
         if transposed is None:
             transposed = image
+        if transposed.mode not in _PNG_MODES:
+            transposed = transposed.convert("RGB")
         out = io.BytesIO()
         transposed.save(out, format="PNG")
     return Response(content=out.getvalue(), media_type="image/png")
@@ -463,8 +468,17 @@ def get_export(
         if export is None:
             raise ApiError(404, "not_found", "export not found")
     data = _read_artifact(state, export["uri"])
-    media = "image/svg+xml" if kind == "svg" else "image/png"
-    return Response(content=data, media_type=media)
+    if kind == "svg":
+        # The web proxy serves this same-origin; opened directly, it must not run script.
+        return Response(
+            content=data,
+            media_type="image/svg+xml",
+            headers={
+                "Content-Security-Policy": _SVG_EXPORT_CSP,
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
+    return Response(content=data, media_type="image/png")
 
 
 @router.get("/jobs/{job_id}", response_model=JobResponse, responses=_OWNED)

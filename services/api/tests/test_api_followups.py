@@ -261,6 +261,57 @@ class ApiFollowupsTest(unittest.TestCase):
         with Image.open(io.BytesIO(display.content)) as png:
             self.assertEqual(png.size, expected_size)
 
+    def test_display_cmyk_jpeg_converts_to_png(self) -> None:
+        owner = f"display-cmyk-{uuid.uuid4()}"
+        buf = io.BytesIO()
+        Image.new("CMYK", (20, 10), color=(0, 0, 0, 0)).save(buf, format="JPEG")
+        created = self.client.post(
+            "/api/v1/documents",
+            files={"file": ("cmyk.jpg", buf.getvalue(), "image/jpeg")},
+            data={"profile_id": "piping_isometric", "options_json": "{}"},
+            headers=self._headers(owner),
+        )
+        self.assertEqual(created.status_code, 202)
+        document_id = created.json()["document_id"]
+        display = self.client.get(
+            f"/api/v1/documents/{document_id}/display",
+            headers=self._headers(owner),
+        )
+        self.assertEqual(display.status_code, 200)
+        with Image.open(io.BytesIO(display.content)) as png:
+            self.assertEqual(png.format, "PNG")
+            self.assertEqual(png.size, (20, 10))
+
+    def test_display_is_owner_scoped(self) -> None:
+        owner = f"display-owner-{uuid.uuid4()}"
+        created = self._upload(owner=owner)
+        document_id = created.json()["document_id"]
+        other = self.client.get(
+            f"/api/v1/documents/{document_id}/display",
+            headers=self._headers(f"intruder-{uuid.uuid4()}"),
+        )
+        self.assertEqual(other.status_code, 403)
+        self.assertEqual(other.json()["code"], "forbidden")
+
+    def test_svg_export_is_sandboxed_when_opened_directly(self) -> None:
+        owner = f"svg-csp-{uuid.uuid4()}"
+        created = self._upload(owner=owner)
+        document_id = created.json()["document_id"]
+        detail = self.client.get(
+            f"/api/v1/documents/{document_id}", headers=self._headers(owner)
+        ).json()
+        revision_id = detail["current_revision_id"]
+        response = self.client.get(
+            f"/api/v1/documents/{document_id}/revisions/{revision_id}/exports/svg",
+            headers=self._headers(owner),
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("image/svg+xml", response.headers["content-type"])
+        csp = response.headers.get("Content-Security-Policy", "")
+        self.assertIn("default-src 'none'", csp)
+        self.assertNotIn("script-src", csp)
+        self.assertEqual(response.headers.get("X-Content-Type-Options"), "nosniff")
+
     def test_job_updated_at_and_review_item_count(self) -> None:
         owner = f"job-meta-{uuid.uuid4()}"
         created = self._upload(owner=owner)

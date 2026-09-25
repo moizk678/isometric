@@ -45,6 +45,66 @@ describe('JobProgressView', () => {
     expect(screen.getByTestId('job-stale-banner')).toBeTruthy();
   });
 
+  it('keeps polling after a transient server error', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let calls = 0;
+    server.use(
+      http.get('/api/v1/jobs/:jobId', () => {
+        calls += 1;
+        if (calls === 2) {
+          return HttpResponse.json(
+            { code: 'internal_error', message: 'boom', request_id: 'req-500' },
+            { status: 500 },
+          );
+        }
+        return HttpResponse.json(
+          makeJobResponse({
+            job_id: 'job-flaky',
+            state: calls >= 3 ? 'succeeded' : 'running',
+            document_id: 'doc-flaky',
+          }),
+        );
+      }),
+    );
+
+    render(<JobProgressView jobId="job-flaky" />);
+    await waitFor(() => {
+      expect(screen.getByText(/Stage:/)).toBeTruthy();
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+
+    expect(calls).toBeGreaterThanOrEqual(3);
+    expect(screen.getByRole('link', { name: 'Open document' })).toBeTruthy();
+  });
+
+  it('stops polling when the job is not found', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    let calls = 0;
+    server.use(
+      http.get('/api/v1/jobs/:jobId', () => {
+        calls += 1;
+        return HttpResponse.json(
+          { code: 'not_found', message: 'Job not found', request_id: 'req-404' },
+          { status: 404 },
+        );
+      }),
+    );
+
+    render(<JobProgressView jobId="job-gone" />);
+    await waitFor(() => {
+      expect(screen.getByText('Could not load job')).toBeTruthy();
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+
+    expect(calls).toBe(1);
+  });
+
   it('shows failed job error message', async () => {
     server.use(
       http.get('/api/v1/jobs/:jobId', () =>
