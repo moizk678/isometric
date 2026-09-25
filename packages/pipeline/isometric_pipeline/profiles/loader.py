@@ -13,6 +13,22 @@ _PROFILES_DIR = _REPO_ROOT / "profiles"
 
 
 @dataclass(frozen=True)
+class TopologyProfile:
+    endpoint_cluster_tolerance_px: float
+    max_endpoint_angle_delta_deg: float
+    intersection_proximity_px: float
+    min_branch_angle_deg: float
+    collinear_merge_max_gap_px: float
+    collinear_angle_tolerance_deg: float
+    ink_bridge_sample_step_px: float
+    min_ink_bridge_coverage: float
+    symbol_region_buffer_px: float
+    min_hypothesis_margin: float
+    elbow_angle_min_deg: float
+    elbow_angle_max_deg: float
+
+
+@dataclass(frozen=True)
 class SnappingProfile:
     max_snap_angle_deg: float
     min_axis_model_confidence: float
@@ -45,6 +61,24 @@ class PipingIsometricProfile:
     version: str
     geometry: GeometryProfile
     snapping: SnappingProfile
+    topology: TopologyProfile
+
+
+def _topology_from_mapping(data: dict[str, object]) -> TopologyProfile:
+    return TopologyProfile(
+        endpoint_cluster_tolerance_px=float(data["endpoint_cluster_tolerance_px"]),
+        max_endpoint_angle_delta_deg=float(data["max_endpoint_angle_delta_deg"]),
+        intersection_proximity_px=float(data["intersection_proximity_px"]),
+        min_branch_angle_deg=float(data["min_branch_angle_deg"]),
+        collinear_merge_max_gap_px=float(data["collinear_merge_max_gap_px"]),
+        collinear_angle_tolerance_deg=float(data["collinear_angle_tolerance_deg"]),
+        ink_bridge_sample_step_px=float(data["ink_bridge_sample_step_px"]),
+        min_ink_bridge_coverage=float(data["min_ink_bridge_coverage"]),
+        symbol_region_buffer_px=float(data["symbol_region_buffer_px"]),
+        min_hypothesis_margin=float(data["min_hypothesis_margin"]),
+        elbow_angle_min_deg=float(data["elbow_angle_min_deg"]),
+        elbow_angle_max_deg=float(data["elbow_angle_max_deg"]),
+    )
 
 
 def _snapping_from_mapping(data: dict[str, object]) -> SnappingProfile:
@@ -90,10 +124,14 @@ def _load_yaml_profile(path: Path) -> PipingIsometricProfile:
     snapping_raw = raw.get("snapping")
     if not isinstance(snapping_raw, dict):
         raise ValueError(f"profile snapping section missing: {path}")
+    topology_raw = raw.get("topology")
+    if not isinstance(topology_raw, dict):
+        raise ValueError(f"profile topology section missing: {path}")
     return PipingIsometricProfile(
         version=version,
         geometry=_geometry_from_mapping(geometry_raw),
         snapping=_snapping_from_mapping(snapping_raw),
+        topology=_topology_from_mapping(topology_raw),
     )
 
 

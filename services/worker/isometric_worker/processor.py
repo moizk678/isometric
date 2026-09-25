@@ -23,6 +23,7 @@ from isometric_persistence.keys import (
     document_primitives_metadata_key,
     document_regions_metadata_key,
     document_snapped_primitives_metadata_key,
+    document_topology_metadata_key,
     job_stage_artifact_key,
 )
 from isometric_persistence.publishing import PublishExport, RevisionPublisher
@@ -56,7 +57,9 @@ from isometric_pipeline.render import (
 )
 from isometric_pipeline.render.versions import RENDERER_VERSION
 from isometric_pipeline.scene import load_scene
+from isometric_pipeline.snapping.artifact import SnappedPrimitivesMetadata
 from isometric_pipeline.snapping.stage import snap_primitives
+from isometric_pipeline.topology.stage import infer_topology
 from psycopg import Connection, OperationalError
 from psycopg.errors import UniqueViolation
 
@@ -73,6 +76,7 @@ from .stages import (
     FIT_PRIMITIVES_VERSION,
     NORMALIZE_PAGE_VERSION,
     SEPARATE_MASKS_VERSION,
+    INFER_TOPOLOGY_VERSION,
     SNAP_PRIMITIVES_VERSION,
     STAGE_DETECT_REGIONS,
     STAGE_EXTRACT_CENTERLINES,
@@ -80,6 +84,7 @@ from .stages import (
     STAGE_FIXTURE_PROCESS,
     STAGE_NORMALIZE_PAGE,
     STAGE_SEPARATE_MASKS,
+    STAGE_INFER_TOPOLOGY,
     STAGE_SNAP_PRIMITIVES,
 )
 
@@ -696,6 +701,106 @@ def _execute_snap_primitives(
     return True
 
 
+def _execute_infer_topology(
+    pool: DatabasePool,
+    store: ArtifactStore,
+    jobs: JobRepository,
+    *,
+    job_id: uuid.UUID,
+    document_id: uuid.UUID,
+    input_hash: str,
+    queue: JobQueue | None,
+) -> bool:
+    page_key = document_page_key(document_id)
+    masks_meta_key = document_masks_metadata_key(document_id)
+    regions_meta_key = document_regions_metadata_key(document_id)
+    primitives_meta_key = document_primitives_metadata_key(document_id)
+    snapped_meta_key = document_snapped_primitives_metadata_key(document_id)
+    topology_meta_key = document_topology_metadata_key(document_id)
+    try:
+        page_png = store.read(page_key)
+        primitives_wire = json.loads(store.read(primitives_meta_key).decode("utf-8"))
+        primitives_metadata = PrimitivesMetadata.model_validate(primitives_wire)
+        snapped_wire = json.loads(store.read(snapped_meta_key).decode("utf-8"))
+        snapped_metadata = SnappedPrimitivesMetadata.model_validate(snapped_wire)
+        masks_wire = json.loads(store.read(masks_meta_key).decode("utf-8"))
+        masks_metadata = MasksMetadata.model_validate(masks_wire)
+        regions_wire = json.loads(store.read(regions_meta_key).decode("utf-8"))
+        regions_metadata = RegionsMetadata.model_validate(regions_wire)
+        layer_masks: dict[str, bytes] = {}
+        try:
+            layer_masks["geometry"] = store.read(
+                document_mask_key(document_id, "geometry-ink")
+            )
+        except (FileNotFoundError, PersistenceError, OSError):
+            pass
+        for layer in masks_metadata.color_layers:
+            try:
+                layer_masks[layer.layer_id] = store.read(
+                    document_color_mask_key(document_id, layer.layer_id)
+                )
+            except (FileNotFoundError, PersistenceError, OSError):
+                continue
+    except (FileNotFoundError, PersistenceError, OSError, json.JSONDecodeError):
+        _retry_or_exhaust(pool, jobs, job_id, queue)
+        return False
+
+    try:
+        topology = infer_topology(
+            page_png,
+            snapped_metadata,
+            primitives_metadata,
+            snapped_primitives_json_uri=snapped_meta_key,
+            primitives_json_uri=primitives_meta_key,
+            topology_json_uri=topology_meta_key,
+            masks=masks_metadata,
+            masks_json_uri=masks_meta_key,
+            regions=regions_metadata,
+            regions_json_uri=regions_meta_key,
+            layer_masks=layer_masks or None,
+        )
+    except Exception:
+        with pool.connection() as conn:
+            jobs.mark_failed(conn, job_id, "processing_invalid")
+            conn.commit()
+        return False
+
+    if not _job_still_active(pool, jobs, job_id):
+        return False
+
+    try:
+        store.write_immutable(topology_meta_key, topology.topology_json)
+        overlay_key = (
+            f"{job_stage_artifact_key(job_id, STAGE_INFER_TOPOLOGY, topology.content_hash)}"
+            "/overlay.png"
+        )
+        store.write_immutable(overlay_key, topology.overlay_png)
+    except (OSError, PersistenceError):
+        _retry_or_exhaust(pool, jobs, job_id, queue)
+        return False
+
+    with pool.connection() as conn:
+        job = jobs.get(conn, job_id)
+        if job is None or job.cancel_requested or job.result_revision_id is not None:
+            if job and job.cancel_requested:
+                jobs.mark_canceled(conn, job_id)
+                conn.commit()
+            return False
+        jobs.insert_stage_run(
+            conn,
+            job_id=job_id,
+            stage=STAGE_INFER_TOPOLOGY,
+            status=topology.status,
+            input_hash=input_hash,
+            producer_version=INFER_TOPOLOGY_VERSION,
+            artifact_uri=topology_meta_key,
+            metrics=topology.metrics,
+            warnings=topology.warnings,
+        )
+        conn.commit()
+    return True
+
+
 def process_job(
     pool: DatabasePool,
     store: ArtifactStore,
@@ -812,6 +917,17 @@ def process_job(
         return
 
     if not _execute_snap_primitives(
+        pool,
+        store,
+        jobs,
+        job_id=job_id,
+        document_id=document_id,
+        input_hash=claimed.input_hash,
+        queue=queue,
+    ):
+        return
+
+    if not _execute_infer_topology(
         pool,
         store,
         jobs,

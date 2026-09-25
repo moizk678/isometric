@@ -45,6 +45,10 @@ def document_snapped_primitives_metadata_key(document_id: uuid.UUID) -> str:
     return f"documents/{document_id}/snapped-primitives.json"
 
 
+def document_topology_metadata_key(document_id: uuid.UUID) -> str:
+    return f"documents/{document_id}/topology.json"
+
+
 def document_mask_key(document_id: uuid.UUID, name: str) -> str:
     return f"documents/{document_id}/masks/{name}.png"
 
