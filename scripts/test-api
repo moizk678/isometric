@@ -2,7 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-PYTHONPATH="services/api:services/worker" .venv/bin/python -m unittest discover \
-  -s services/api/tests -p 'test_*.py' -v
-PYTHONPATH="services/worker" .venv/bin/python -c \
-  'import isometric_worker; assert isometric_worker.__version__ == "0.0.0"'
+export PYTHONPATH="services/api:services/worker:packages/pipeline:packages/persistence"
+.venv/bin/python -m unittest discover -s services/api/tests -p 'test_*.py' -v
+.venv/bin/python -c 'import isometric_api; assert isometric_api.__version__ == "0.1.0"'
+.venv/bin/python -c 'import isometric_worker; assert isometric_worker.__version__ == "0.1.0"'

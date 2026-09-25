@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+export PYTHONPATH="services/worker:packages/pipeline:packages/persistence"
+.venv/bin/python - <<'PY'
+import os
+from pathlib import Path
+
+from isometric_persistence.artifacts import FilesystemArtifactStore
+from isometric_persistence.config import load_database_settings
+from isometric_persistence.db import DatabasePool
+from isometric_worker import load_queue, run_once
+
+pool = DatabasePool(load_database_settings())
+store = FilesystemArtifactStore(Path(os.environ.get("ARTIFACT_ROOT", ".private/artifacts")))
+count = run_once(pool, store, load_queue())
+print(f"processed {count} jobs")
+pool.close()
+PY

@@ -8,7 +8,7 @@ Update this file after a run's exit criteria pass. `planned` is not `complete`; 
 | 01 | complete | [handoff](01-HANDOFF.md) | Scene contract v1.0 in CI; review events and profile tolerances deferred. |
 | 02 | complete | [handoff](02-HANDOFF.md) | SVG renderer and goldens verified locally and on hosted CI (`c08ea37`, run `36183166119`). |
 | 03 | complete | [handoff](03-HANDOFF.md) | Migrations, repositories, and artifact store verified locally; cloud migration on project `bhezwfoifroyidfwdvcy`. |
-| 04 | planned | — | |
+| 04 | complete | [handoff](04-HANDOFF.md) | Upload/jobs API exit checks: lease recovery, idempotent revision per job, error classes, progress/review_state; `./scripts/test-api` passes. |
 | 05 | planned | — | |
 | 06 | planned | — | |
 | 07 | planned | — | |

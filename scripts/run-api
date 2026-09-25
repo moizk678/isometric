@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+export PYTHONPATH="services/api:services/worker:packages/pipeline:packages/persistence"
+exec .venv/bin/uvicorn isometric_api.app:app --host 0.0.0.0 --port "${PORT:-8000}"
