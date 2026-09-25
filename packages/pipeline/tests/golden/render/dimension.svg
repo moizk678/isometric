@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+<metadata>{"schemaVersion":"1.0","documentId":"b5000001-0001-4001-8001-000000000001","revisionId":"b5000001-0001-4001-8001-000000000002","rendererVersion":"1.0.0","symbolLibraryVersion":"piping-symbols@1.0.0","styleProfileVersion":"piping-default@1.0.0","unresolvedCount":0}</metadata>
+<defs>
+<marker id="marker-arrow-start" viewBox="0 0 6 6" refX="0" refY="3" markerWidth="6" markerHeight="6" markerUnits="userSpaceOnUse" orient="auto" overflow="visible">
+<path d="M6 0L0 3L6 6Z" fill="#1a1a1a"/>
+</marker>
+<marker id="marker-arrow-end" viewBox="0 0 6 6" refX="6" refY="3" markerWidth="6" markerHeight="6" markerUnits="userSpaceOnUse" orient="auto" overflow="visible">
+<path d="M0 0L6 3L0 6Z" fill="#1a1a1a"/>
+</marker>
+</defs>
+<g id="pipes">
+<g id="layer-b5000001-0001-4001-8001-000000000003" stroke="#0b5fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<line id="obj-b5000001-0001-4001-8001-000000000013" data-object-id="b5000001-0001-4001-8001-000000000013" data-state="machine" x1="60" y1="140" x2="140" y2="140"/>
+</g>
+</g>
+<g id="connections">
+<g id="obj-b5000001-0001-4001-8001-000000000011" data-object-id="b5000001-0001-4001-8001-000000000011" data-state="machine"/>
+<g id="obj-b5000001-0001-4001-8001-000000000012" data-object-id="b5000001-0001-4001-8001-000000000012" data-state="machine"/>
+</g>
+<g id="symbols"/>
+<g id="dimensions">
+<g id="obj-b5000001-0001-4001-8001-000000000014" data-object-id="b5000001-0001-4001-8001-000000000014" data-state="machine">
+<line x1="60" y1="90" x2="140" y2="90" stroke="#1a1a1a" stroke-width="0.75" marker-start="url(#marker-arrow-start)" marker-end="url(#marker-arrow-end)"/>
+<text x="100" y="90" fill="#1a1a1a" font-family="Arial, Helvetica, 'Liberation Sans', sans-serif" font-size="12" text-anchor="middle">80 mm</text>
+</g>
+</g>
+<g id="callouts"/>
+<g id="annotations"/>
+<g id="unresolved"/>
+</svg>

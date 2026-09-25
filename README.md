@@ -25,7 +25,7 @@ Individual checks:
 
 ## Layout and data
 
-The [DrawingScene contract](docs/scene-contract.md) documents coordinate spaces, invariants, issue codes, and schema tooling for Run 01.
+The [DrawingScene contract](docs/scene-contract.md) documents coordinate spaces, invariants, issue codes, and schema tooling for Run 01. The [SVG renderer](docs/svg-renderer.md) documents deterministic export, preview rasterization, symbol IDs, and golden checks for Run 02.
 
 `apps/web` is the future Next.js workbench; `services/api` and `services/worker` are future Python services; `packages/pipeline` and `packages/evaluation` hold shared conversion and evidence code. `profiles`, `supabase/migrations`, and `infra/local` are reserved for their later bounded runs. No placeholder service currently listens on a port.
 

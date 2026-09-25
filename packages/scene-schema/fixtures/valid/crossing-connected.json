@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0",
-  "documentId": "b3000001-0001-4001-8001-000000000001",
-  "revisionId": "b3000001-0001-4001-8001-000000000002",
+  "documentId": "b6300001-0001-4001-8001-000000000001",
+  "revisionId": "b6300001-0001-4001-8001-000000000002",
   "profileId": "piping_isometric",
   "page": {
     "sourceWidthPx": 200,
@@ -57,7 +57,7 @@
   },
   "layers": [
     {
-      "id": "b3000001-0001-4001-8001-000000000003",
+      "id": "b6300001-0001-4001-8001-000000000003",
       "name": "piping",
       "sourceColor": "#1a1a1a",
       "renderColor": "#0b5fff"
@@ -66,166 +66,13 @@
   "objects": [
     {
       "type": "junction",
-      "id": "b3000001-0001-4001-8001-000000000013",
-      "layerId": "b3000001-0001-4001-8001-000000000003",
+      "id": "b6300001-0001-4001-8001-000000000011",
+      "layerId": "b6300001-0001-4001-8001-000000000003",
       "position": {
-        "x": 30.0,
-        "y": 100.0
-      },
-      "kind": "endpoint",
-      "interpretation": {
-        "state": "machine",
-        "score": 0.88,
-        "evidence": [
-          {
-            "sourcePolygon": [
-              {
-                "x": 12.0,
-                "y": 14.0
-              },
-              {
-                "x": 28.0,
-                "y": 14.0
-              },
-              {
-                "x": 20.0,
-                "y": 26.0
-              }
-            ],
-            "stage": "vectorize",
-            "artifactId": "fixture-artifact-vi-jl",
-            "observations": {
-              "confidence": 0.91
-            }
-          }
-        ]
-      }
-    },
-    {
-      "type": "junction",
-      "id": "b3000001-0001-4001-8001-000000000011",
-      "layerId": "b3000001-0001-4001-8001-000000000003",
-      "position": {
-        "x": 80.0,
-        "y": 100.0
-      },
-      "kind": "endpoint",
-      "interpretation": {
-        "state": "machine",
-        "score": 0.88,
-        "evidence": [
-          {
-            "sourcePolygon": [
-              {
-                "x": 12.0,
-                "y": 14.0
-              },
-              {
-                "x": 28.0,
-                "y": 14.0
-              },
-              {
-                "x": 20.0,
-                "y": 26.0
-              }
-            ],
-            "stage": "vectorize",
-            "artifactId": "fixture-artifact-vi-ji",
-            "observations": {
-              "confidence": 0.91
-            }
-          }
-        ]
-      }
-    },
-    {
-      "type": "junction",
-      "id": "b3000001-0001-4001-8001-000000000012",
-      "layerId": "b3000001-0001-4001-8001-000000000003",
-      "position": {
-        "x": 120.0,
-        "y": 100.0
-      },
-      "kind": "endpoint",
-      "interpretation": {
-        "state": "machine",
-        "score": 0.88,
-        "evidence": [
-          {
-            "sourcePolygon": [
-              {
-                "x": 12.0,
-                "y": 14.0
-              },
-              {
-                "x": 28.0,
-                "y": 14.0
-              },
-              {
-                "x": 20.0,
-                "y": 26.0
-              }
-            ],
-            "stage": "vectorize",
-            "artifactId": "fixture-artifact-vi-jo",
-            "observations": {
-              "confidence": 0.91
-            }
-          }
-        ]
-      }
-    },
-    {
-      "type": "junction",
-      "id": "b3000001-0001-4001-8001-000000000014",
-      "layerId": "b3000001-0001-4001-8001-000000000003",
-      "position": {
-        "x": 170.0,
-        "y": 100.0
-      },
-      "kind": "endpoint",
-      "interpretation": {
-        "state": "machine",
-        "score": 0.88,
-        "evidence": [
-          {
-            "sourcePolygon": [
-              {
-                "x": 12.0,
-                "y": 14.0
-              },
-              {
-                "x": 28.0,
-                "y": 14.0
-              },
-              {
-                "x": 20.0,
-                "y": 26.0
-              }
-            ],
-            "stage": "vectorize",
-            "artifactId": "fixture-artifact-vi-jr",
-            "observations": {
-              "confidence": 0.91
-            }
-          }
-        ]
-      }
-    },
-    {
-      "type": "symbol",
-      "id": "b3000001-0001-4001-8001-000000000015",
-      "layerId": "b3000001-0001-4001-8001-000000000003",
-      "symbolId": "ball_valve",
-      "anchor": {
         "x": 100.0,
         "y": 100.0
       },
-      "rotationDegrees": 0.0,
-      "portNodeIds": {
-        "inlet": "b3000001-0001-4001-8001-000000000011",
-        "outlet": "b3000001-0001-4001-8001-000000000012"
-      },
+      "kind": "crossing",
       "interpretation": {
         "state": "machine",
         "score": 0.88,
@@ -246,7 +93,155 @@
               }
             ],
             "stage": "vectorize",
-            "artifactId": "fixture-artifact-vi-sym",
+            "artifactId": "fixture-artifact-cc-x",
+            "observations": {
+              "confidence": 0.91
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "junction",
+      "id": "b6300001-0001-4001-8001-000000000012",
+      "layerId": "b6300001-0001-4001-8001-000000000003",
+      "position": {
+        "x": 20.0,
+        "y": 100.0
+      },
+      "kind": "endpoint",
+      "interpretation": {
+        "state": "machine",
+        "score": 0.88,
+        "evidence": [
+          {
+            "sourcePolygon": [
+              {
+                "x": 12.0,
+                "y": 14.0
+              },
+              {
+                "x": 28.0,
+                "y": 14.0
+              },
+              {
+                "x": 20.0,
+                "y": 26.0
+              }
+            ],
+            "stage": "vectorize",
+            "artifactId": "fixture-artifact-cc-w",
+            "observations": {
+              "confidence": 0.91
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "junction",
+      "id": "b6300001-0001-4001-8001-000000000013",
+      "layerId": "b6300001-0001-4001-8001-000000000003",
+      "position": {
+        "x": 180.0,
+        "y": 100.0
+      },
+      "kind": "endpoint",
+      "interpretation": {
+        "state": "machine",
+        "score": 0.88,
+        "evidence": [
+          {
+            "sourcePolygon": [
+              {
+                "x": 12.0,
+                "y": 14.0
+              },
+              {
+                "x": 28.0,
+                "y": 14.0
+              },
+              {
+                "x": 20.0,
+                "y": 26.0
+              }
+            ],
+            "stage": "vectorize",
+            "artifactId": "fixture-artifact-cc-e",
+            "observations": {
+              "confidence": 0.91
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "junction",
+      "id": "b6300001-0001-4001-8001-000000000014",
+      "layerId": "b6300001-0001-4001-8001-000000000003",
+      "position": {
+        "x": 100.0,
+        "y": 20.0
+      },
+      "kind": "endpoint",
+      "interpretation": {
+        "state": "machine",
+        "score": 0.88,
+        "evidence": [
+          {
+            "sourcePolygon": [
+              {
+                "x": 12.0,
+                "y": 14.0
+              },
+              {
+                "x": 28.0,
+                "y": 14.0
+              },
+              {
+                "x": 20.0,
+                "y": 26.0
+              }
+            ],
+            "stage": "vectorize",
+            "artifactId": "fixture-artifact-cc-n",
+            "observations": {
+              "confidence": 0.91
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "junction",
+      "id": "b6300001-0001-4001-8001-000000000015",
+      "layerId": "b6300001-0001-4001-8001-000000000003",
+      "position": {
+        "x": 100.0,
+        "y": 180.0
+      },
+      "kind": "endpoint",
+      "interpretation": {
+        "state": "machine",
+        "score": 0.88,
+        "evidence": [
+          {
+            "sourcePolygon": [
+              {
+                "x": 12.0,
+                "y": 14.0
+              },
+              {
+                "x": 28.0,
+                "y": 14.0
+              },
+              {
+                "x": 20.0,
+                "y": 26.0
+              }
+            ],
+            "stage": "vectorize",
+            "artifactId": "fixture-artifact-cc-s",
             "observations": {
               "confidence": 0.91
             }
@@ -256,18 +251,18 @@
     },
     {
       "type": "pipe_segment",
-      "id": "b3000001-0001-4001-8001-000000000016",
-      "layerId": "b3000001-0001-4001-8001-000000000003",
-      "startNodeId": "b3000001-0001-4001-8001-000000000013",
-      "endNodeId": "b3000001-0001-4001-8001-000000000011",
+      "id": "b6300001-0001-4001-8001-000000000016",
+      "layerId": "b6300001-0001-4001-8001-000000000003",
+      "startNodeId": "b6300001-0001-4001-8001-000000000012",
+      "endNodeId": "b6300001-0001-4001-8001-000000000011",
       "primitive": {
         "kind": "line",
         "start": {
-          "x": 30.0,
+          "x": 20.0,
           "y": 100.0
         },
         "end": {
-          "x": 80.0,
+          "x": 100.0,
           "y": 100.0
         }
       },
@@ -291,7 +286,7 @@
               }
             ],
             "stage": "vectorize",
-            "artifactId": "fixture-artifact-vi-p1",
+            "artifactId": "fixture-artifact-cc-ph1",
             "observations": {
               "confidence": 0.91
             }
@@ -301,18 +296,18 @@
     },
     {
       "type": "pipe_segment",
-      "id": "b3000001-0001-4001-8001-000000000017",
-      "layerId": "b3000001-0001-4001-8001-000000000003",
-      "startNodeId": "b3000001-0001-4001-8001-000000000012",
-      "endNodeId": "b3000001-0001-4001-8001-000000000014",
+      "id": "b6300001-0001-4001-8001-000000000017",
+      "layerId": "b6300001-0001-4001-8001-000000000003",
+      "startNodeId": "b6300001-0001-4001-8001-000000000011",
+      "endNodeId": "b6300001-0001-4001-8001-000000000013",
       "primitive": {
         "kind": "line",
         "start": {
-          "x": 120.0,
+          "x": 100.0,
           "y": 100.0
         },
         "end": {
-          "x": 170.0,
+          "x": 180.0,
           "y": 100.0
         }
       },
@@ -336,7 +331,97 @@
               }
             ],
             "stage": "vectorize",
-            "artifactId": "fixture-artifact-vi-p2",
+            "artifactId": "fixture-artifact-cc-ph2",
+            "observations": {
+              "confidence": 0.91
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "pipe_segment",
+      "id": "b6300001-0001-4001-8001-000000000018",
+      "layerId": "b6300001-0001-4001-8001-000000000003",
+      "startNodeId": "b6300001-0001-4001-8001-000000000014",
+      "endNodeId": "b6300001-0001-4001-8001-000000000011",
+      "primitive": {
+        "kind": "line",
+        "start": {
+          "x": 100.0,
+          "y": 20.0
+        },
+        "end": {
+          "x": 100.0,
+          "y": 100.0
+        }
+      },
+      "interpretation": {
+        "state": "machine",
+        "score": 0.88,
+        "evidence": [
+          {
+            "sourcePolygon": [
+              {
+                "x": 12.0,
+                "y": 14.0
+              },
+              {
+                "x": 28.0,
+                "y": 14.0
+              },
+              {
+                "x": 20.0,
+                "y": 26.0
+              }
+            ],
+            "stage": "vectorize",
+            "artifactId": "fixture-artifact-cc-pv1",
+            "observations": {
+              "confidence": 0.91
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "pipe_segment",
+      "id": "b6300001-0001-4001-8001-000000000019",
+      "layerId": "b6300001-0001-4001-8001-000000000003",
+      "startNodeId": "b6300001-0001-4001-8001-000000000011",
+      "endNodeId": "b6300001-0001-4001-8001-000000000015",
+      "primitive": {
+        "kind": "line",
+        "start": {
+          "x": 100.0,
+          "y": 100.0
+        },
+        "end": {
+          "x": 100.0,
+          "y": 180.0
+        }
+      },
+      "interpretation": {
+        "state": "machine",
+        "score": 0.88,
+        "evidence": [
+          {
+            "sourcePolygon": [
+              {
+                "x": 12.0,
+                "y": 14.0
+              },
+              {
+                "x": 28.0,
+                "y": 14.0
+              },
+              {
+                "x": 20.0,
+                "y": 26.0
+              }
+            ],
+            "stage": "vectorize",
+            "artifactId": "fixture-artifact-cc-pv2",
             "observations": {
               "confidence": 0.91
             }

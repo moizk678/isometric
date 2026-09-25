@@ -27,7 +27,7 @@
 |---|---|---|
 | `PYTHONPATH=packages/pipeline .venv/bin/python -m isometric_pipeline.scene.generate` | Pass | Regenerated schema, types, and fixture exports; exit 0. |
 | `./scripts/check-scene-schema` | Pass | `--check` on generate plus `tsc --noEmit` for `@isometric/scene-schema`; exit 0. |
-| `./scripts/test-pipeline` | Pass | 82 pipeline tests including fixtures, invariants, serialization, and generation staleness; exit 0. |
+| `./scripts/test-pipeline` | Pass | 87 pipeline tests including fixtures, invariants, serialization, and generation staleness; exit 0. |
 | `./scripts/check` | Pass | Ruff, scene-schema check, API/pipeline/evaluation/web tests; exit 0. |
 | Run 01 exit checks (`01-scene-contract.md`) | Pass | Python output validates against JSON Schema and TS compile check; valid/invalid fixtures; unconnected crossing serialize/deserialize; relationships cannot imply connectivity; generated files reproducible. |
 

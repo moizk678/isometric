@@ -1,0 +1,93 @@
+{
+  "version": "piping-symbols@1.0.0",
+  "units": "px",
+  "symbols": [
+    {
+      "id": "ball_valve",
+      "label": "Ball valve",
+      "ports": [
+        { "name": "inlet", "x": -20, "y": 0, "required": true },
+        { "name": "outlet", "x": 20, "y": 0, "required": true }
+      ],
+      "primitives": [
+        {
+          "kind": "polygon",
+          "points": [[-20, -10], [-20, 10], [20, -10], [20, 10]],
+          "fill": false
+        },
+        { "kind": "circle", "points": [[0, 0]], "r": 4, "fill": true }
+      ]
+    },
+    {
+      "id": "elbow_fitting",
+      "label": "Elbow fitting",
+      "ports": [
+        { "name": "a", "x": -20, "y": 0, "required": true },
+        { "name": "b", "x": 0, "y": -20, "required": true }
+      ],
+      "primitives": [
+        {
+          "kind": "line",
+          "points": [[-20, 0], [0, 0]],
+          "fill": false
+        },
+        {
+          "kind": "line",
+          "points": [[0, 0], [0, -20]],
+          "fill": false
+        }
+      ]
+    },
+    {
+      "id": "endpoint",
+      "label": "Endpoint",
+      "ports": [{ "name": "pipe", "x": 0, "y": 0, "required": true }],
+      "primitives": [
+        {
+          "kind": "line",
+          "points": [[0, -10], [0, 10]],
+          "fill": false
+        }
+      ]
+    },
+    {
+      "id": "tee_fitting",
+      "label": "Tee fitting",
+      "ports": [
+        { "name": "run_a", "x": -20, "y": 0, "required": true },
+        { "name": "run_b", "x": 20, "y": 0, "required": true },
+        { "name": "branch", "x": 0, "y": -20, "required": true }
+      ],
+      "primitives": [
+        {
+          "kind": "line",
+          "points": [[-20, 0], [20, 0]],
+          "fill": false
+        },
+        {
+          "kind": "line",
+          "points": [[0, 0], [0, -20]],
+          "fill": false
+        }
+      ]
+    },
+    {
+      "id": "unknown",
+      "label": "Unknown symbol",
+      "ports": [
+        { "name": "port_1", "x": -20, "y": 0, "required": false },
+        { "name": "port_2", "x": 0, "y": -20, "required": false },
+        { "name": "port_3", "x": 20, "y": 0, "required": false },
+        { "name": "port_4", "x": 0, "y": 20, "required": false }
+      ],
+      "primitives": [
+        {
+          "kind": "circle",
+          "points": [[0, 0]],
+          "r": 20,
+          "fill": false
+        }
+      ]
+    }
+  ]
+}

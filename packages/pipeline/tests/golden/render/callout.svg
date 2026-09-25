@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+<metadata>{"schemaVersion":"1.0","documentId":"b6500001-0001-4001-8001-000000000001","revisionId":"b6500001-0001-4001-8001-000000000002","rendererVersion":"1.0.0","symbolLibraryVersion":"piping-symbols@1.0.0","styleProfileVersion":"piping-default@1.0.0","unresolvedCount":0}</metadata>
+<defs/>
+<g id="pipes">
+<g id="layer-b6500001-0001-4001-8001-000000000003" stroke="#0b5fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<line id="obj-b6500001-0001-4001-8001-000000000013" data-object-id="b6500001-0001-4001-8001-000000000013" data-state="machine" x1="40" y1="120" x2="160" y2="120"/>
+</g>
+</g>
+<g id="connections">
+<g id="obj-b6500001-0001-4001-8001-000000000011" data-object-id="b6500001-0001-4001-8001-000000000011" data-state="machine"/>
+<g id="obj-b6500001-0001-4001-8001-000000000012" data-object-id="b6500001-0001-4001-8001-000000000012" data-state="machine"/>
+</g>
+<g id="symbols"/>
+<g id="dimensions"/>
+<g id="callouts">
+<line x1="55" y1="45" x2="40" y2="120" stroke="#1a1a1a" stroke-width="0.75"/>
+</g>
+<g id="annotations">
+<text id="obj-b6500001-0001-4001-8001-000000000014" data-object-id="b6500001-0001-4001-8001-000000000014" data-state="machine" data-recognized-text="Callout note" x="55" y="45" fill="#1a1a1a" font-family="Arial, Helvetica, 'Liberation Sans', sans-serif" font-size="12">Callout note</text>
+</g>
+<g id="unresolved"/>
+</svg>

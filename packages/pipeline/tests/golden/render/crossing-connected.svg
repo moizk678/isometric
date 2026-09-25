@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+<metadata>{"schemaVersion":"1.0","documentId":"b6300001-0001-4001-8001-000000000001","revisionId":"b6300001-0001-4001-8001-000000000002","rendererVersion":"1.0.0","symbolLibraryVersion":"piping-symbols@1.0.0","styleProfileVersion":"piping-default@1.0.0","unresolvedCount":0}</metadata>
+<defs/>
+<g id="pipes">
+<g id="layer-b6300001-0001-4001-8001-000000000003" stroke="#0b5fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+<line id="obj-b6300001-0001-4001-8001-000000000016" data-object-id="b6300001-0001-4001-8001-000000000016" data-state="machine" x1="20" y1="100" x2="100" y2="100"/>
+<line id="obj-b6300001-0001-4001-8001-000000000017" data-object-id="b6300001-0001-4001-8001-000000000017" data-state="machine" x1="100" y1="100" x2="180" y2="100"/>
+<line id="obj-b6300001-0001-4001-8001-000000000018" data-object-id="b6300001-0001-4001-8001-000000000018" data-state="machine" x1="100" y1="20" x2="100" y2="100"/>
+<line id="obj-b6300001-0001-4001-8001-000000000019" data-object-id="b6300001-0001-4001-8001-000000000019" data-state="machine" x1="100" y1="100" x2="100" y2="180"/>
+</g>
+</g>
+<g id="connections">
+<circle id="obj-b6300001-0001-4001-8001-000000000011" data-object-id="b6300001-0001-4001-8001-000000000011" data-state="machine" cx="100" cy="100" r="3" fill="#0b5fff"/>
+<g id="obj-b6300001-0001-4001-8001-000000000012" data-object-id="b6300001-0001-4001-8001-000000000012" data-state="machine"/>
+<g id="obj-b6300001-0001-4001-8001-000000000013" data-object-id="b6300001-0001-4001-8001-000000000013" data-state="machine"/>
+<g id="obj-b6300001-0001-4001-8001-000000000014" data-object-id="b6300001-0001-4001-8001-000000000014" data-state="machine"/>
+<g id="obj-b6300001-0001-4001-8001-000000000015" data-object-id="b6300001-0001-4001-8001-000000000015" data-state="machine"/>
+</g>
+<g id="symbols"/>
+<g id="dimensions"/>
+<g id="callouts"/>
+<g id="annotations"/>
+<g id="unresolved"/>
+</svg>

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+<metadata>{"schemaVersion":"1.0","documentId":"b6000001-0001-4001-8001-000000000001","revisionId":"b6000001-0001-4001-8001-000000000002","rendererVersion":"1.0.0","symbolLibraryVersion":"piping-symbols@1.0.0","styleProfileVersion":"piping-default@1.0.0","unresolvedCount":1}</metadata>
+<defs/>
+<g id="pipes">
+<g id="layer-b6000001-0001-4001-8001-000000000003" stroke="#0b5fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</g>
+<g id="connections"/>
+<g id="symbols"/>
+<g id="dimensions"/>
+<g id="callouts"/>
+<g id="annotations"/>
+<g id="unresolved">
+<g id="obj-b6000001-0001-4001-8001-000000000011" data-object-id="b6000001-0001-4001-8001-000000000011" data-state="machine" stroke="#d93025" stroke-width="1" stroke-dasharray="4 2" fill="none">
+<polygon points="12,14 28,14 20,26"/>
+</g>
+</g>
+</svg>

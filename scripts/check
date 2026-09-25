@@ -5,6 +5,7 @@ cd "$(dirname "$0")/.."
 .venv/bin/ruff check services packages
 .venv/bin/ruff format --check services packages
 ./scripts/check-scene-schema
+PYTHONPATH=packages/pipeline .venv/bin/python -m isometric_pipeline.render.golden --check
 ./scripts/test-api
 ./scripts/test-pipeline
 ./scripts/test-web

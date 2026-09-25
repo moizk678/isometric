@@ -6,6 +6,7 @@ import json
 import unittest
 from pathlib import Path
 
+from isometric_pipeline.render import SYMBOL_LIBRARY_VERSION, load_symbol_library
 from isometric_pipeline.scene import (
     IssueCode,
     SceneValidationError,
@@ -13,6 +14,7 @@ from isometric_pipeline.scene import (
     load_scene,
 )
 from jsonschema import Draft202012Validator
+from render_fixtures import assert_expectations_cover_valid_fixtures
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FIXTURES = REPO_ROOT / "scene-schema/fixtures"
@@ -27,34 +29,18 @@ INVALID_EXPECTED: tuple[tuple[str, str], ...] = tuple(
 )
 
 
-class FixtureSymbolCatalog:
-    """Minimal catalog for fixtures that reference fixture_two_port_valve."""
-
-    _VALVE_ID = "fixture_two_port_valve"
-    _PORTS = frozenset({"inlet", "outlet"})
-
-    def port_names(self, symbol_id: str) -> frozenset[str] | None:
-        if symbol_id == self._VALVE_ID:
-            return self._PORTS
-        return None
-
-    def required_ports(self, symbol_id: str) -> frozenset[str]:
-        if symbol_id == self._VALVE_ID:
-            return self._PORTS
-        return frozenset()
-
-
 def _issue_code_set(exc: SceneValidationError) -> frozenset[IssueCode]:
     return frozenset(exc.codes)
 
 
 class SceneFixturesTest(unittest.TestCase):
-    catalog = FixtureSymbolCatalog()
+    catalog = load_symbol_library(SYMBOL_LIBRARY_VERSION)
 
     @classmethod
     def setUpClass(cls) -> None:
         schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
         cls._jsonschema_validator = Draft202012Validator(schema)
+        assert_expectations_cover_valid_fixtures()
 
     def test_valid_fixtures_load_with_invariants(self) -> None:
         for path in VALID_FIXTURES:
