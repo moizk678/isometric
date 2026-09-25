@@ -11,6 +11,7 @@ from isometric_persistence.artifacts import ArtifactStore
 from isometric_persistence.db import DatabasePool
 from isometric_persistence.errors import ConflictError, PersistenceError
 from isometric_persistence.keys import (
+    document_axes_metadata_key,
     document_centerlines_metadata_key,
     document_color_mask_key,
     document_crop_key,
@@ -21,6 +22,7 @@ from isometric_persistence.keys import (
     document_page_key,
     document_primitives_metadata_key,
     document_regions_metadata_key,
+    document_snapped_primitives_metadata_key,
     job_stage_artifact_key,
 )
 from isometric_persistence.publishing import PublishExport, RevisionPublisher
@@ -41,6 +43,7 @@ from isometric_pipeline.normalize.page import (
     NormalizePageError,
     normalize_page,
 )
+from isometric_pipeline.primitives.artifact import PrimitivesMetadata
 from isometric_pipeline.primitives.stage import fit_primitives
 from isometric_pipeline.regions.artifact import RegionsMetadata
 from isometric_pipeline.regions.stage import detect_regions
@@ -53,6 +56,7 @@ from isometric_pipeline.render import (
 )
 from isometric_pipeline.render.versions import RENDERER_VERSION
 from isometric_pipeline.scene import load_scene
+from isometric_pipeline.snapping.stage import snap_primitives
 from psycopg import Connection, OperationalError
 from psycopg.errors import UniqueViolation
 
@@ -69,12 +73,14 @@ from .stages import (
     FIT_PRIMITIVES_VERSION,
     NORMALIZE_PAGE_VERSION,
     SEPARATE_MASKS_VERSION,
+    SNAP_PRIMITIVES_VERSION,
     STAGE_DETECT_REGIONS,
     STAGE_EXTRACT_CENTERLINES,
     STAGE_FIT_PRIMITIVES,
     STAGE_FIXTURE_PROCESS,
     STAGE_NORMALIZE_PAGE,
     STAGE_SEPARATE_MASKS,
+    STAGE_SNAP_PRIMITIVES,
 )
 
 FIXTURE_SCENE = (
@@ -599,6 +605,97 @@ def _execute_fit_primitives(
     return True
 
 
+def _execute_snap_primitives(
+    pool: DatabasePool,
+    store: ArtifactStore,
+    jobs: JobRepository,
+    *,
+    job_id: uuid.UUID,
+    document_id: uuid.UUID,
+    input_hash: str,
+    queue: JobQueue | None,
+) -> bool:
+    page_key = document_page_key(document_id)
+    masks_meta_key = document_masks_metadata_key(document_id)
+    regions_meta_key = document_regions_metadata_key(document_id)
+    primitives_meta_key = document_primitives_metadata_key(document_id)
+    axes_meta_key = document_axes_metadata_key(document_id)
+    snapped_meta_key = document_snapped_primitives_metadata_key(document_id)
+    try:
+        page_png = store.read(page_key)
+        primitives_wire = json.loads(store.read(primitives_meta_key).decode("utf-8"))
+        primitives_metadata = PrimitivesMetadata.model_validate(primitives_wire)
+        masks_wire = json.loads(store.read(masks_meta_key).decode("utf-8"))
+        masks_metadata = MasksMetadata.model_validate(masks_wire)
+        regions_wire = json.loads(store.read(regions_meta_key).decode("utf-8"))
+        regions_metadata = RegionsMetadata.model_validate(regions_wire)
+        grid_mask_png = None
+        try:
+            grid_mask_png = store.read(document_mask_key(document_id, "grid"))
+        except (FileNotFoundError, PersistenceError, OSError):
+            grid_mask_png = None
+    except (FileNotFoundError, PersistenceError, OSError, json.JSONDecodeError):
+        _retry_or_exhaust(pool, jobs, job_id, queue)
+        return False
+
+    grid_confidence = masks_metadata.diagnostics.grid_confidence
+
+    try:
+        snapped = snap_primitives(
+            page_png,
+            primitives_metadata,
+            primitives_json_uri=primitives_meta_key,
+            axes_json_uri=axes_meta_key,
+            snapped_primitives_json_uri=snapped_meta_key,
+            masks_json_uri=masks_meta_key,
+            regions=regions_metadata,
+            regions_json_uri=regions_meta_key,
+            grid_mask_png=grid_mask_png,
+            grid_confidence=grid_confidence,
+        )
+    except Exception:
+        with pool.connection() as conn:
+            jobs.mark_failed(conn, job_id, "processing_invalid")
+            conn.commit()
+        return False
+
+    if not _job_still_active(pool, jobs, job_id):
+        return False
+
+    try:
+        store.write_immutable(axes_meta_key, snapped.axes_json)
+        store.write_immutable(snapped_meta_key, snapped.snapped_primitives_json)
+        overlay_key = (
+            f"{job_stage_artifact_key(job_id, STAGE_SNAP_PRIMITIVES, snapped.content_hash)}"
+            "/overlay.png"
+        )
+        store.write_immutable(overlay_key, snapped.overlay_png)
+    except (OSError, PersistenceError):
+        _retry_or_exhaust(pool, jobs, job_id, queue)
+        return False
+
+    with pool.connection() as conn:
+        job = jobs.get(conn, job_id)
+        if job is None or job.cancel_requested or job.result_revision_id is not None:
+            if job and job.cancel_requested:
+                jobs.mark_canceled(conn, job_id)
+                conn.commit()
+            return False
+        jobs.insert_stage_run(
+            conn,
+            job_id=job_id,
+            stage=STAGE_SNAP_PRIMITIVES,
+            status=snapped.status,
+            input_hash=input_hash,
+            producer_version=SNAP_PRIMITIVES_VERSION,
+            artifact_uri=snapped_meta_key,
+            metrics=snapped.metrics,
+            warnings=snapped.warnings,
+        )
+        conn.commit()
+    return True
+
+
 def process_job(
     pool: DatabasePool,
     store: ArtifactStore,
@@ -711,6 +808,17 @@ def process_job(
         queue=queue,
         separated=separated,
         extracted=extracted,
+    ):
+        return
+
+    if not _execute_snap_primitives(
+        pool,
+        store,
+        jobs,
+        job_id=job_id,
+        document_id=document_id,
+        input_hash=claimed.input_hash,
+        queue=queue,
     ):
         return
 

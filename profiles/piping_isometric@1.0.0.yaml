@@ -11,3 +11,13 @@ geometry:
   max_chord_deviation_px: 4.0
   max_turning_angle_deg: 18.0
   stroke_width_percentile: 50.0
+snapping:
+  max_snap_angle_deg: 4.0
+  min_axis_model_confidence: 0.35
+  min_primitive_length_px: 20.0
+  max_endpoint_displacement_px: 8.0
+  max_residual_after_snap_px: 3.5
+  endpoint_align_tolerance_px: 6.0
+  grid_confidence_min: 0.35
+  skip_dimension_region_overlap: true
+  dimension_overlap_fraction: 0.25

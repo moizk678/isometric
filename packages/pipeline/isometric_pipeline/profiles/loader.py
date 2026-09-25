@@ -13,6 +13,19 @@ _PROFILES_DIR = _REPO_ROOT / "profiles"
 
 
 @dataclass(frozen=True)
+class SnappingProfile:
+    max_snap_angle_deg: float
+    min_axis_model_confidence: float
+    min_primitive_length_px: float
+    max_endpoint_displacement_px: float
+    max_residual_after_snap_px: float
+    endpoint_align_tolerance_px: float
+    grid_confidence_min: float
+    skip_dimension_region_overlap: bool
+    dimension_overlap_fraction: float
+
+
+@dataclass(frozen=True)
 class GeometryProfile:
     min_component_pixels: int
     max_spur_length_px: int
@@ -31,6 +44,21 @@ class GeometryProfile:
 class PipingIsometricProfile:
     version: str
     geometry: GeometryProfile
+    snapping: SnappingProfile
+
+
+def _snapping_from_mapping(data: dict[str, object]) -> SnappingProfile:
+    return SnappingProfile(
+        max_snap_angle_deg=float(data["max_snap_angle_deg"]),
+        min_axis_model_confidence=float(data["min_axis_model_confidence"]),
+        min_primitive_length_px=float(data["min_primitive_length_px"]),
+        max_endpoint_displacement_px=float(data["max_endpoint_displacement_px"]),
+        max_residual_after_snap_px=float(data["max_residual_after_snap_px"]),
+        endpoint_align_tolerance_px=float(data["endpoint_align_tolerance_px"]),
+        grid_confidence_min=float(data["grid_confidence_min"]),
+        skip_dimension_region_overlap=bool(data["skip_dimension_region_overlap"]),
+        dimension_overlap_fraction=float(data["dimension_overlap_fraction"]),
+    )
 
 
 def _geometry_from_mapping(data: dict[str, object]) -> GeometryProfile:
@@ -59,9 +87,13 @@ def _load_yaml_profile(path: Path) -> PipingIsometricProfile:
     geometry_raw = raw.get("geometry")
     if not isinstance(geometry_raw, dict):
         raise ValueError(f"profile geometry section missing: {path}")
+    snapping_raw = raw.get("snapping")
+    if not isinstance(snapping_raw, dict):
+        raise ValueError(f"profile snapping section missing: {path}")
     return PipingIsometricProfile(
         version=version,
         geometry=_geometry_from_mapping(geometry_raw),
+        snapping=_snapping_from_mapping(snapping_raw),
     )
 
 

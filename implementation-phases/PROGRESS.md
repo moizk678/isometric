@@ -13,7 +13,7 @@ Update this file after a run's exit criteria pass. `planned` is not `complete`; 
 | 06 | complete | [handoff](06-HANDOFF.md) | `normalize_page` stage, document display/page artifacts, `/display` cache + EXIF fallback; fixture scene publish unchanged. |
 | 07 | complete | [handoff](07-HANDOFF.md) | `separate_masks` + `detect_regions`, mask/region artifacts; fixture scene publish unchanged. |
 | 08 | complete | [handoff](08-HANDOFF.md) | `extract_centerlines` + `fit_primitives`, `centerlines.json` / `primitives.json`; fixture scene publish unchanged. |
-| 09 | planned | — | |
+| 09 | complete | [handoff](09-HANDOFF.md) | `snap_primitives`, `axes.json` / `snapped-primitives.json`; fixture scene publish unchanged. |
 | 10 | planned | — | |
 | 11 | planned | — | OCR model selection requires real handwritten samples. |
 | 12 | planned | — | Organization symbol standard requires sample drawings. |

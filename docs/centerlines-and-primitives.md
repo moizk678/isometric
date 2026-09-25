@@ -32,4 +32,4 @@ Worker order: `normalize_page` → `separate_masks` → `detect_regions` → **`
 
 ## Run 09 handoff
 
-Run 09 reads `primitives.json` accepted/uncertain line candidates (unsnapped page coordinates). It does not use topology from `centerlines.json`; connectivity is still out of scope.
+Run 09 reads `primitives.json` accepted/uncertain line candidates (unsnapped page coordinates) and writes `axes.json` plus `snapped-primitives.json`. See [`axis-snapping.md`](axis-snapping.md). Connectivity is still out of scope.
