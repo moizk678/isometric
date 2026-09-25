@@ -26,6 +26,22 @@ class OcrProfile:
 
 
 @dataclass(frozen=True)
+class AssociationsProfile:
+    max_witness_text_distance_px: float
+    min_witness_length_px: float
+    witness_max_gap_px: float
+    max_witness_angle_from_axis_deg: float
+    hough_threshold: int
+    pipe_exclusion_buffer_px: float
+    max_dimension_target_distance_px: float
+    max_annotation_target_distance_px: float
+    target_ambiguity_margin: float
+    leader_max_steps: int
+    leader_step_px: float
+    arrow_alignment_tolerance_deg: float
+
+
+@dataclass(frozen=True)
 class SymbolsProfile:
     library_version: str
     classifier_backend: str
@@ -90,6 +106,7 @@ class PipingIsometricProfile:
     topology: TopologyProfile
     ocr: OcrProfile
     symbols: SymbolsProfile
+    associations: AssociationsProfile
 
 
 def _ocr_from_mapping(data: dict[str, object]) -> OcrProfile:
@@ -110,6 +127,27 @@ def _ocr_from_mapping(data: dict[str, object]) -> OcrProfile:
         context_radius_px=float(data["context_radius_px"]),
         vocabulary_terms=tuple(str(t) for t in terms_raw),
         abbreviations=MappingProxyType({str(k): str(v) for k, v in abbrev_raw.items()}),
+    )
+
+
+def _associations_from_mapping(data: dict[str, object]) -> AssociationsProfile:
+    return AssociationsProfile(
+        max_witness_text_distance_px=float(data["max_witness_text_distance_px"]),
+        min_witness_length_px=float(data["min_witness_length_px"]),
+        witness_max_gap_px=float(data["witness_max_gap_px"]),
+        max_witness_angle_from_axis_deg=float(data["max_witness_angle_from_axis_deg"]),
+        hough_threshold=int(data["hough_threshold"]),
+        pipe_exclusion_buffer_px=float(data["pipe_exclusion_buffer_px"]),
+        max_dimension_target_distance_px=float(
+            data["max_dimension_target_distance_px"]
+        ),
+        max_annotation_target_distance_px=float(
+            data["max_annotation_target_distance_px"]
+        ),
+        target_ambiguity_margin=float(data["target_ambiguity_margin"]),
+        leader_max_steps=int(data["leader_max_steps"]),
+        leader_step_px=float(data["leader_step_px"]),
+        arrow_alignment_tolerance_deg=float(data["arrow_alignment_tolerance_deg"]),
     )
 
 
@@ -199,6 +237,9 @@ def _load_yaml_profile(path: Path) -> PipingIsometricProfile:
     symbols_raw = raw.get("symbols")
     if not isinstance(symbols_raw, dict):
         raise ValueError(f"profile symbols section missing: {path}")
+    associations_raw = raw.get("associations")
+    if not isinstance(associations_raw, dict):
+        raise ValueError(f"profile associations section missing: {path}")
     return PipingIsometricProfile(
         version=version,
         geometry=_geometry_from_mapping(geometry_raw),
@@ -206,6 +247,7 @@ def _load_yaml_profile(path: Path) -> PipingIsometricProfile:
         topology=_topology_from_mapping(topology_raw),
         ocr=_ocr_from_mapping(ocr_raw),
         symbols=_symbols_from_mapping(symbols_raw),
+        associations=_associations_from_mapping(associations_raw),
     )
 
 

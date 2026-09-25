@@ -57,6 +57,10 @@ def document_symbol_candidates_metadata_key(document_id: uuid.UUID) -> str:
     return f"documents/{document_id}/symbol-candidates.json"
 
 
+def document_association_candidates_metadata_key(document_id: uuid.UUID) -> str:
+    return f"documents/{document_id}/association-candidates.json"
+
+
 def document_mask_key(document_id: uuid.UUID, name: str) -> str:
     return f"documents/{document_id}/masks/{name}.png"
 

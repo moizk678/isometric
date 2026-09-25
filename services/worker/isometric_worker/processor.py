@@ -12,6 +12,7 @@ from isometric_persistence.artifacts import ArtifactStore
 from isometric_persistence.db import DatabasePool
 from isometric_persistence.errors import ConflictError, PersistenceError
 from isometric_persistence.keys import (
+    document_association_candidates_metadata_key,
     document_axes_metadata_key,
     document_centerlines_metadata_key,
     document_color_mask_key,
@@ -36,6 +37,7 @@ from isometric_persistence.repositories.revisions import (
     RevisionRepository,
     SceneRevisionRow,
 )
+from isometric_pipeline.associate_markup.stage import associate_markup
 from isometric_pipeline.centerlines.stage import (
     ExtractCenterlinesResult,
     extract_centerlines,
@@ -64,6 +66,7 @@ from isometric_pipeline.render.versions import RENDERER_VERSION
 from isometric_pipeline.scene import load_scene
 from isometric_pipeline.snapping.artifact import SnappedPrimitivesMetadata
 from isometric_pipeline.snapping.stage import snap_primitives
+from isometric_pipeline.symbol_candidates.artifact import SymbolCandidatesMetadata
 from isometric_pipeline.symbol_candidates.stage import classify_symbol_regions
 from isometric_pipeline.topology.artifact import TopologyMetadata
 from isometric_pipeline.topology.stage import infer_topology
@@ -78,6 +81,7 @@ from .fixture_fit import (
 )
 from .queue import JobQueue
 from .stages import (
+    ASSOCIATE_MARKUP_VERSION,
     CLASSIFY_SYMBOL_REGIONS_VERSION,
     DETECT_REGIONS_VERSION,
     EXTRACT_CENTERLINES_VERSION,
@@ -86,6 +90,7 @@ from .stages import (
     NORMALIZE_PAGE_VERSION,
     SEPARATE_MASKS_VERSION,
     SNAP_PRIMITIVES_VERSION,
+    STAGE_ASSOCIATE_MARKUP,
     STAGE_CLASSIFY_SYMBOL_REGIONS,
     STAGE_DETECT_REGIONS,
     STAGE_EXTRACT_CENTERLINES,
@@ -997,6 +1002,123 @@ def _execute_classify_symbol_regions(
     return True
 
 
+def _execute_associate_markup(
+    pool: DatabasePool,
+    store: ArtifactStore,
+    jobs: JobRepository,
+    *,
+    job_id: uuid.UUID,
+    document_id: uuid.UUID,
+    input_hash: str,
+    queue: JobQueue | None,
+) -> bool:
+    page_key = document_page_key(document_id)
+    regions_meta_key = document_regions_metadata_key(document_id)
+    masks_meta_key = document_masks_metadata_key(document_id)
+    topology_meta_key = document_topology_metadata_key(document_id)
+    text_meta_key = document_text_candidates_metadata_key(document_id)
+    symbol_meta_key = document_symbol_candidates_metadata_key(document_id)
+    association_meta_key = document_association_candidates_metadata_key(document_id)
+    try:
+        page_png = store.read(page_key)
+        regions_wire = json.loads(store.read(regions_meta_key).decode("utf-8"))
+        regions_metadata = RegionsMetadata.model_validate(regions_wire)
+        geometry_ink_png: bytes | None = None
+        masks_uri: str | None = None
+        try:
+            masks_wire = json.loads(store.read(masks_meta_key).decode("utf-8"))
+            masks_metadata = MasksMetadata.model_validate(masks_wire)
+            masks_uri = masks_meta_key
+            geometry_key = masks_metadata.geometry_ink_mask.uri
+            geometry_ink_png = store.read(geometry_key)
+        except (FileNotFoundError, PersistenceError, OSError, json.JSONDecodeError):
+            geometry_ink_png = None
+        if geometry_ink_png is None and regions_metadata.geometry_ink_mask_uri:
+            try:
+                geometry_ink_png = store.read(regions_metadata.geometry_ink_mask_uri)
+            except (FileNotFoundError, PersistenceError, OSError):
+                geometry_ink_png = None
+        topology_metadata: TopologyMetadata | None = None
+        try:
+            topology_wire = json.loads(store.read(topology_meta_key).decode("utf-8"))
+            topology_metadata = TopologyMetadata.model_validate(topology_wire)
+        except (FileNotFoundError, PersistenceError, OSError, json.JSONDecodeError):
+            topology_metadata = None
+        text_metadata: TextCandidatesMetadata | None = None
+        try:
+            text_wire = json.loads(store.read(text_meta_key).decode("utf-8"))
+            text_metadata = TextCandidatesMetadata.model_validate(text_wire)
+        except (FileNotFoundError, PersistenceError, OSError, json.JSONDecodeError):
+            text_metadata = None
+        symbol_metadata: SymbolCandidatesMetadata | None = None
+        try:
+            symbol_wire = json.loads(store.read(symbol_meta_key).decode("utf-8"))
+            symbol_metadata = SymbolCandidatesMetadata.model_validate(symbol_wire)
+        except (FileNotFoundError, PersistenceError, OSError, json.JSONDecodeError):
+            symbol_metadata = None
+    except (FileNotFoundError, PersistenceError, OSError, json.JSONDecodeError):
+        _retry_or_exhaust(pool, jobs, job_id, queue)
+        return False
+
+    try:
+        associated = associate_markup(
+            page_png,
+            regions_metadata,
+            regions_json_uri=regions_meta_key,
+            association_candidates_json_uri=association_meta_key,
+            geometry_ink_png=geometry_ink_png,
+            masks_metadata_uri=masks_uri,
+            topology=topology_metadata,
+            topology_json_uri=topology_meta_key if topology_metadata else None,
+            text_candidates=text_metadata,
+            text_candidates_json_uri=text_meta_key if text_metadata else None,
+            symbol_candidates=symbol_metadata,
+            symbol_candidates_json_uri=symbol_meta_key if symbol_metadata else None,
+        )
+    except Exception:
+        with pool.connection() as conn:
+            jobs.mark_failed(conn, job_id, "processing_invalid")
+            conn.commit()
+        return False
+
+    if not _job_still_active(pool, jobs, job_id):
+        return False
+
+    try:
+        store.write_immutable(
+            association_meta_key, associated.association_candidates_json
+        )
+        overlay_key = (
+            f"{job_stage_artifact_key(job_id, STAGE_ASSOCIATE_MARKUP, associated.content_hash)}"
+            "/overlay.png"
+        )
+        store.write_immutable(overlay_key, associated.overlay_png)
+    except (OSError, PersistenceError):
+        _retry_or_exhaust(pool, jobs, job_id, queue)
+        return False
+
+    with pool.connection() as conn:
+        job = jobs.get(conn, job_id)
+        if job is None or job.cancel_requested or job.result_revision_id is not None:
+            if job and job.cancel_requested:
+                jobs.mark_canceled(conn, job_id)
+                conn.commit()
+            return False
+        jobs.insert_stage_run(
+            conn,
+            job_id=job_id,
+            stage=STAGE_ASSOCIATE_MARKUP,
+            status=associated.status,
+            input_hash=input_hash,
+            producer_version=ASSOCIATE_MARKUP_VERSION,
+            artifact_uri=association_meta_key,
+            metrics=associated.metrics,
+            warnings=associated.warnings,
+        )
+        conn.commit()
+    return True
+
+
 def _fixture_only_worker() -> bool:
     return os.environ.get("ISOMETRIC_WORKER_FIXTURE_ONLY") == "1"
 
@@ -1286,6 +1408,17 @@ def process_job(
         return
 
     if not _execute_classify_symbol_regions(
+        pool,
+        store,
+        jobs,
+        job_id=job_id,
+        document_id=document_id,
+        input_hash=claimed.input_hash,
+        queue=queue,
+    ):
+        return
+
+    if not _execute_associate_markup(
         pool,
         store,
         jobs,

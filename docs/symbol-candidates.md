@@ -8,7 +8,7 @@ Stage `classify_symbol_regions` runs in **page pixel space** after Run 11 `trans
 |---|---|---|---|
 | `classify_symbol_regions` | `classify_symbol_regions@1.0.0` | `documents/{id}/symbol-candidates.json` | `jobs/{jobId}/stages/classify_symbol_regions/{hash}/overlay.png` |
 
-Worker order: `normalize_page` → `separate_masks` → `detect_regions` → `extract_centerlines` → `fit_primitives` → `snap_primitives` → `infer_topology` → `transcribe_regions` → **`classify_symbol_regions`** → `fixture_process` (fixture scene publication unchanged).
+Worker order: `normalize_page` → `separate_masks` → `detect_regions` → `extract_centerlines` → `fit_primitives` → `snap_primitives` → `infer_topology` → `transcribe_regions` → **`classify_symbol_regions`** → **`associate_markup`** → `fixture_process` (fixture scene publication unchanged).
 
 ## Inputs
 

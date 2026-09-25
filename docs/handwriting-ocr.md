@@ -8,7 +8,7 @@ Stage `transcribe_regions` runs in **page pixel space** after Run 10 `infer_topo
 |---|---|---|---|
 | `transcribe_regions` | `transcribe_regions@1.0.0` | `documents/{id}/text-candidates.json` | `jobs/{jobId}/stages/transcribe_regions/{hash}/overlay.png` |
 
-Worker order: `normalize_page` → `separate_masks` → `detect_regions` → `extract_centerlines` → `fit_primitives` → `snap_primitives` → `infer_topology` → **`transcribe_regions`** → `classify_symbol_regions` → `fixture_process` (fixture scene publication unchanged).
+Worker order: `normalize_page` → `separate_masks` → `detect_regions` → `extract_centerlines` → `fit_primitives` → `snap_primitives` → `infer_topology` → **`transcribe_regions`** → `classify_symbol_regions` → `associate_markup` → `fixture_process` (fixture scene publication unchanged).
 
 ## Inputs
 
@@ -32,4 +32,4 @@ Real handwriting accuracy is **unmeasured** until labeled samples exist (Run 17)
 
 ## Downstream
 
-Runs 12–13 consume text candidates for symbol context and dimension association. Scene assembly remains Run 14.
+Runs 12–14 consume text candidates for symbol context and dimension association. Scene assembly remains Run 14.
