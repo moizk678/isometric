@@ -29,6 +29,14 @@ def document_regions_metadata_key(document_id: uuid.UUID) -> str:
     return f"documents/{document_id}/regions.json"
 
 
+def document_centerlines_metadata_key(document_id: uuid.UUID) -> str:
+    return f"documents/{document_id}/centerlines.json"
+
+
+def document_primitives_metadata_key(document_id: uuid.UUID) -> str:
+    return f"documents/{document_id}/primitives.json"
+
+
 def document_mask_key(document_id: uuid.UUID, name: str) -> str:
     return f"documents/{document_id}/masks/{name}.png"
 

@@ -6,7 +6,14 @@ const webDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(webDir, '../..');
 
 const databaseUrl =
-  process.env.E2E_DATABASE_URL ?? 'postgresql://isometric:isometric@localhost:5432/isometric_e2e';
+  process.env.E2E_DATABASE_URL ??
+  process.env.SUPABASE_DATABASE_URL ??
+  process.env.SUPABASE_DEVELOPMENT_DATABASE_URL;
+if (!databaseUrl) {
+  throw new Error(
+    'Set SUPABASE_DATABASE_URL (or E2E_DATABASE_URL) for Playwright E2E tests',
+  );
+}
 const apiPort = process.env.E2E_API_PORT ?? '8000';
 const webPort = process.env.E2E_WEB_PORT ?? '3000';
 const apiOrigin = `http://127.0.0.1:${apiPort}`;
@@ -42,7 +49,7 @@ export default defineConfig({
       cwd: repoRoot,
       url: `${apiOrigin}/openapi.json`,
       env: {
-        LOCAL_DATABASE_URL: databaseUrl,
+        SUPABASE_DATABASE_URL: databaseUrl,
         ARTIFACT_ROOT: path.join(repoRoot, '.private/e2e-artifacts'),
         PORT: apiPort,
       },

@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
+if [[ -f .env ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  eval "$(./scripts/load-env)"
+  set +a
+fi
 
-if [[ -z "${LOCAL_DATABASE_URL:-}" ]]; then
-  echo "LOCAL_DATABASE_URL is required for export-openapi" >&2
+if [[ -z "${SUPABASE_DATABASE_URL:-}" && -z "${SUPABASE_DEVELOPMENT_DATABASE_URL:-}" ]]; then
+  echo "SUPABASE_DATABASE_URL is required for export-openapi" >&2
   exit 1
 fi
 

@@ -1,9 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
+if [[ -f .env ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  eval "$(./scripts/load-env)"
+  set +a
+fi
 
-if [[ -z "${LOCAL_DATABASE_URL:-}" ]]; then
-  echo "LOCAL_DATABASE_URL is required" >&2
+if [[ -z "${SUPABASE_DATABASE_URL:-}" && -z "${SUPABASE_DEVELOPMENT_DATABASE_URL:-}" ]]; then
+  echo "SUPABASE_DATABASE_URL is required" >&2
   exit 1
 fi
 
@@ -14,7 +20,7 @@ import uuid
 from pathlib import Path
 
 from isometric_persistence.artifacts import FilesystemArtifactStore
-from isometric_persistence.config import DatabaseSettings
+from isometric_persistence.config import load_database_settings
 from isometric_persistence.db import DatabasePool
 from isometric_persistence.keys import document_original_key
 from isometric_persistence.publishing import PublishExport, RevisionPublisher
@@ -28,7 +34,7 @@ document_id = uuid.UUID(scene["documentId"])
 
 root = Path(os.environ.get("ARTIFACT_ROOT", ".private/artifacts"))
 store = FilesystemArtifactStore(root)
-pool = DatabasePool(DatabaseSettings(url=os.environ["LOCAL_DATABASE_URL"]))
+pool = DatabasePool(load_database_settings())
 docs = DocumentRepository()
 publisher = RevisionPublisher(store)
 

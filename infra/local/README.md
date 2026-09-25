@@ -1,11 +1,11 @@
-# Local infrastructure
+# Optional local PostgreSQL (legacy)
 
-Run 03 adds PostgreSQL 17 for persistence tests:
+This Docker Compose stack is **not** used by `./scripts/check`, tests, or the default development flow. The project uses **Supabase Cloud** via `SUPABASE_DATABASE_URL` (see [docs/persistence.md](../../docs/persistence.md)).
+
+If you still want a local Postgres instance for experiments:
 
 ```sh
 docker compose -f infra/local/docker-compose.yml up -d
-export LOCAL_DATABASE_URL=postgresql://isometric:isometric@localhost:5432/isometric
-./scripts/migrate-replay
 ```
 
-Artifact bytes default to `.private/artifacts` via `ARTIFACT_ROOT`. Queue adapters remain for later runs.
+Do not point `SUPABASE_DATABASE_URL` at this container unless you intentionally replace cloud development with local Postgres.

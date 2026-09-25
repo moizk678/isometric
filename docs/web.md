@@ -9,12 +9,12 @@ Next.js product UI for upload, job progress, and fixture-backed review. The brow
 Same persistence setup as the API ([upload-and-jobs.md](./upload-and-jobs.md)):
 
 ```sh
-export LOCAL_DATABASE_URL=postgresql://isometric:isometric@localhost:5432/isometric
+export SUPABASE_DATABASE_URL='postgresql://...'  # direct Supabase Postgres URL
 export ARTIFACT_ROOT=.private/artifacts
 ./scripts/migrate-replay
 ```
 
-Copy `.env.example` to `.env` (or export the web variables below). Next.js loads `.env` from the repo root when present.
+Create `apps/web/.env.local` (see `.env.example`) with `API_ORIGIN`, `DEV_OWNER_ID`, and optional `NEXT_PUBLIC_SUPABASE_*` for future client SDK use. The drawing API and worker still use FastAPI + `SUPABASE_DATABASE_URL` in the repo root `.env` from `./scripts/setup-env`.
 
 ### API
 
@@ -60,7 +60,7 @@ Full repo gate: `./scripts/check` (ends with `./scripts/test-web` and `./scripts
 
 The API still requires `X-Owner-Id` for direct curl access; the web app adds it in [`apps/web/src/lib/api-proxy.ts`](../apps/web/src/lib/api-proxy.ts) inside [`apps/web/src/app/api/v1/[...path]/route.ts`](../apps/web/src/app/api/v1/[...path]/route.ts). Client code uses [`apiFetch`](../apps/web/src/api/http.ts), which calls relative paths under `/api/v1`.
 
-Other variables (`LOCAL_DATABASE_URL`, `ARTIFACT_ROOT`, etc.) are for the API and worker only; they are not read by the Next.js client bundle.
+Other variables (`SUPABASE_DATABASE_URL`, `ARTIFACT_ROOT`, etc.) are for the API and worker only; they are not read by the Next.js client bundle.
 
 **Owner consistency:** uploads and list/detail are scoped to the owner id the proxy sends. Use the same `DEV_OWNER_ID` for the lifetime of a dev database, or you will not see documents created under a different owner header.
 

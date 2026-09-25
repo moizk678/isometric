@@ -5,7 +5,7 @@ FastAPI control plane for multipart upload, durable jobs, and fixture-backed pro
 ## Run locally
 
 ```sh
-export LOCAL_DATABASE_URL=postgresql://isometric:isometric@localhost:5432/isometric
+export SUPABASE_DATABASE_URL='postgresql://...'
 export ARTIFACT_ROOT=.private/artifacts
 ./scripts/migrate-replay
 ./scripts/run-api

@@ -12,7 +12,7 @@ Update this file after a run's exit criteria pass. `planned` is not `complete`; 
 | 05 | complete | [handoff](05-HANDOFF.md) | Upload, job, and review UI verified by `./scripts/check` with 26 Playwright tests (keyboard, touch, 1440/390/320/200% zoom, upload retry, axe); `/display` is an EXIF stand-in until Run 06. |
 | 06 | complete | [handoff](06-HANDOFF.md) | `normalize_page` stage, document display/page artifacts, `/display` cache + EXIF fallback; fixture scene publish unchanged. |
 | 07 | complete | [handoff](07-HANDOFF.md) | `separate_masks` + `detect_regions`, mask/region artifacts; fixture scene publish unchanged. |
-| 08 | planned | — | |
+| 08 | complete | [handoff](08-HANDOFF.md) | `extract_centerlines` + `fit_primitives`, `centerlines.json` / `primitives.json`; fixture scene publish unchanged. |
 | 09 | planned | — | |
 | 10 | planned | — | |
 | 11 | planned | — | OCR model selection requires real handwritten samples. |

@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Print the configured Supabase database URL or exit 1.
+set -euo pipefail
+if [[ -n "${SUPABASE_DATABASE_URL:-}" ]]; then
+  printf '%s' "$SUPABASE_DATABASE_URL"
+  exit 0
+fi
+if [[ -n "${SUPABASE_DEVELOPMENT_DATABASE_URL:-}" ]]; then
+  printf '%s' "$SUPABASE_DEVELOPMENT_DATABASE_URL"
+  exit 0
+fi
+echo "SUPABASE_DATABASE_URL is required (direct Supabase Postgres URL)" >&2
+exit 1

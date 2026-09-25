@@ -13,7 +13,7 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 from isometric_api.app import create_app
-from isometric_persistence.config import DatabaseSettings
+from isometric_persistence.config import DatabaseSettings, resolve_database_url
 from isometric_persistence.db import DatabasePool
 from isometric_persistence.keys import (
     document_display_key,
@@ -42,10 +42,10 @@ def exif_rotated_jpeg() -> tuple[bytes, tuple[int, int]]:
 
 
 def require_database() -> str:
-    url = os.environ.get("LOCAL_DATABASE_URL")
-    if not url:
-        raise unittest.SkipTest("LOCAL_DATABASE_URL is not set")
-    return url
+    try:
+        return resolve_database_url()
+    except RuntimeError:
+        raise unittest.SkipTest("SUPABASE_DATABASE_URL is not set") from None
 
 
 class ApiFollowupsTest(unittest.TestCase):
@@ -54,7 +54,7 @@ class ApiFollowupsTest(unittest.TestCase):
         cls.db_url = require_database()
         cls.artifact_root = Path(mkdtemp(prefix="isometric-w1a-artifacts-"))
         os.environ["ARTIFACT_ROOT"] = str(cls.artifact_root)
-        os.environ["LOCAL_DATABASE_URL"] = cls.db_url
+        os.environ["SUPABASE_DATABASE_URL"] = cls.db_url
         pool = DatabasePool(DatabaseSettings(url=cls.db_url))
         with pool.connection() as conn:
             apply_migrations(conn)

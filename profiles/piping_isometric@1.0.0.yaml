@@ -1,0 +1,13 @@
+version: piping_isometric@1.0.0
+geometry:
+  min_component_pixels: 25
+  max_spur_length_px: 6
+  morph_open_kernel_px: 3
+  morph_close_kernel_px: 3
+  skeleton_prune_iterations: 12
+  max_line_fit_residual_px: 2.5
+  min_line_length_px: 12.0
+  min_r_squared: 0.92
+  max_chord_deviation_px: 4.0
+  max_turning_angle_deg: 18.0
+  stroke_width_percentile: 50.0

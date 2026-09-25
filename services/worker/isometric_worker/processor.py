@@ -11,6 +11,7 @@ from isometric_persistence.artifacts import ArtifactStore
 from isometric_persistence.db import DatabasePool
 from isometric_persistence.errors import ConflictError, PersistenceError
 from isometric_persistence.keys import (
+    document_centerlines_metadata_key,
     document_color_mask_key,
     document_crop_key,
     document_display_key,
@@ -18,6 +19,7 @@ from isometric_persistence.keys import (
     document_masks_metadata_key,
     document_normalize_metadata_key,
     document_page_key,
+    document_primitives_metadata_key,
     document_regions_metadata_key,
     job_stage_artifact_key,
 )
@@ -28,12 +30,19 @@ from isometric_persistence.repositories.revisions import (
     RevisionRepository,
     SceneRevisionRow,
 )
+from isometric_pipeline.centerlines.stage import (
+    ExtractCenterlinesResult,
+    extract_centerlines,
+)
+from isometric_pipeline.masks.artifact import MasksMetadata
 from isometric_pipeline.masks.stage import SeparateMasksResult, separate_masks
 from isometric_pipeline.normalize.page import (
     NormalizeLimits,
     NormalizePageError,
     normalize_page,
 )
+from isometric_pipeline.primitives.stage import fit_primitives
+from isometric_pipeline.regions.artifact import RegionsMetadata
 from isometric_pipeline.regions.stage import detect_regions
 from isometric_pipeline.render import (
     STYLE_PROFILE_VERSION,
@@ -56,9 +65,13 @@ from .fixture_fit import (
 from .queue import JobQueue
 from .stages import (
     DETECT_REGIONS_VERSION,
+    EXTRACT_CENTERLINES_VERSION,
+    FIT_PRIMITIVES_VERSION,
     NORMALIZE_PAGE_VERSION,
     SEPARATE_MASKS_VERSION,
     STAGE_DETECT_REGIONS,
+    STAGE_EXTRACT_CENTERLINES,
+    STAGE_FIT_PRIMITIVES,
     STAGE_FIXTURE_PROCESS,
     STAGE_NORMALIZE_PAGE,
     STAGE_SEPARATE_MASKS,
@@ -424,6 +437,168 @@ def _execute_detect_regions(
     return True
 
 
+def _execute_extract_centerlines(
+    pool: DatabasePool,
+    store: ArtifactStore,
+    jobs: JobRepository,
+    *,
+    job_id: uuid.UUID,
+    document_id: uuid.UUID,
+    input_hash: str,
+    queue: JobQueue | None,
+    separated: SeparateMasksResult,
+) -> ExtractCenterlinesResult | None:
+    page_key = document_page_key(document_id)
+    masks_meta_key = document_masks_metadata_key(document_id)
+    regions_meta_key = document_regions_metadata_key(document_id)
+    centerlines_meta_key = document_centerlines_metadata_key(document_id)
+    try:
+        page_png = store.read(page_key)
+        geometry_ink = store.read(document_mask_key(document_id, "geometry-ink"))
+        masks_wire = json.loads(store.read(masks_meta_key).decode("utf-8"))
+        masks_metadata = MasksMetadata.model_validate(masks_wire)
+        regions_wire = json.loads(store.read(regions_meta_key).decode("utf-8"))
+        regions_metadata = RegionsMetadata.model_validate(regions_wire)
+    except (FileNotFoundError, PersistenceError, OSError, json.JSONDecodeError):
+        _retry_or_exhaust(pool, jobs, job_id, queue)
+        return None
+
+    try:
+        extracted = extract_centerlines(
+            page_png,
+            geometry_ink,
+            separated.color_layer_masks,
+            masks_metadata,
+            regions_metadata,
+            document_id=str(document_id),
+            masks_json_uri=masks_meta_key,
+            regions_json_uri=regions_meta_key,
+            centerlines_json_uri=centerlines_meta_key,
+        )
+    except Exception:
+        with pool.connection() as conn:
+            jobs.mark_failed(conn, job_id, "processing_invalid")
+            conn.commit()
+        return None
+
+    if not _job_still_active(pool, jobs, job_id):
+        return None
+
+    try:
+        store.write_immutable(centerlines_meta_key, extracted.centerlines_json)
+        for crop_id, crop_png in extracted.crop_pngs.items():
+            store.write_immutable(document_crop_key(document_id, crop_id), crop_png)
+        overlay_key = (
+            f"{job_stage_artifact_key(job_id, STAGE_EXTRACT_CENTERLINES, extracted.content_hash)}"
+            "/overlay.png"
+        )
+        store.write_immutable(overlay_key, extracted.overlay_png)
+    except (OSError, PersistenceError):
+        _retry_or_exhaust(pool, jobs, job_id, queue)
+        return None
+
+    with pool.connection() as conn:
+        job = jobs.get(conn, job_id)
+        if job is None or job.cancel_requested or job.result_revision_id is not None:
+            if job and job.cancel_requested:
+                jobs.mark_canceled(conn, job_id)
+                conn.commit()
+            return None
+        jobs.insert_stage_run(
+            conn,
+            job_id=job_id,
+            stage=STAGE_EXTRACT_CENTERLINES,
+            status=extracted.status,
+            input_hash=input_hash,
+            producer_version=EXTRACT_CENTERLINES_VERSION,
+            artifact_uri=centerlines_meta_key,
+            metrics=extracted.metrics,
+            warnings=extracted.warnings,
+        )
+        conn.commit()
+    return extracted
+
+
+def _execute_fit_primitives(
+    pool: DatabasePool,
+    store: ArtifactStore,
+    jobs: JobRepository,
+    *,
+    job_id: uuid.UUID,
+    document_id: uuid.UUID,
+    input_hash: str,
+    queue: JobQueue | None,
+    separated: SeparateMasksResult,
+    extracted: ExtractCenterlinesResult,
+) -> bool:
+    page_key = document_page_key(document_id)
+    masks_meta_key = document_masks_metadata_key(document_id)
+    regions_meta_key = document_regions_metadata_key(document_id)
+    centerlines_meta_key = document_centerlines_metadata_key(document_id)
+    primitives_meta_key = document_primitives_metadata_key(document_id)
+    try:
+        page_png = store.read(page_key)
+        layer_masks: dict[str, bytes] = {
+            "geometry": store.read(document_mask_key(document_id, "geometry-ink"))
+        }
+        for layer_id, layer_png in separated.color_layer_masks.items():
+            layer_masks[layer_id] = layer_png
+    except (FileNotFoundError, PersistenceError, OSError):
+        _retry_or_exhaust(pool, jobs, job_id, queue)
+        return False
+
+    try:
+        fitted = fit_primitives(
+            page_png,
+            extracted.metadata,
+            layer_masks,
+            centerlines_json_uri=centerlines_meta_key,
+            masks_json_uri=masks_meta_key,
+            regions_json_uri=regions_meta_key,
+            primitives_json_uri=primitives_meta_key,
+        )
+    except Exception:
+        with pool.connection() as conn:
+            jobs.mark_failed(conn, job_id, "processing_invalid")
+            conn.commit()
+        return False
+
+    if not _job_still_active(pool, jobs, job_id):
+        return False
+
+    try:
+        store.write_immutable(primitives_meta_key, fitted.primitives_json)
+        overlay_key = (
+            f"{job_stage_artifact_key(job_id, STAGE_FIT_PRIMITIVES, fitted.content_hash)}"
+            "/overlay.png"
+        )
+        store.write_immutable(overlay_key, fitted.overlay_png)
+    except (OSError, PersistenceError):
+        _retry_or_exhaust(pool, jobs, job_id, queue)
+        return False
+
+    with pool.connection() as conn:
+        job = jobs.get(conn, job_id)
+        if job is None or job.cancel_requested or job.result_revision_id is not None:
+            if job and job.cancel_requested:
+                jobs.mark_canceled(conn, job_id)
+                conn.commit()
+            return False
+        jobs.insert_stage_run(
+            conn,
+            job_id=job_id,
+            stage=STAGE_FIT_PRIMITIVES,
+            status=fitted.status,
+            input_hash=input_hash,
+            producer_version=FIT_PRIMITIVES_VERSION,
+            artifact_uri=primitives_meta_key,
+            metrics=fitted.metrics,
+            warnings=fitted.warnings,
+        )
+        conn.commit()
+    return True
+
+
 def process_job(
     pool: DatabasePool,
     store: ArtifactStore,
@@ -510,6 +685,32 @@ def process_job(
         input_hash=claimed.input_hash,
         queue=queue,
         separated=separated,
+    ):
+        return
+
+    extracted = _execute_extract_centerlines(
+        pool,
+        store,
+        jobs,
+        job_id=job_id,
+        document_id=document_id,
+        input_hash=claimed.input_hash,
+        queue=queue,
+        separated=separated,
+    )
+    if extracted is None:
+        return
+
+    if not _execute_fit_primitives(
+        pool,
+        store,
+        jobs,
+        job_id=job_id,
+        document_id=document_id,
+        input_hash=claimed.input_hash,
+        queue=queue,
+        separated=separated,
+        extracted=extracted,
     ):
         return
 

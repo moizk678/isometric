@@ -13,12 +13,22 @@ class DatabaseSettings:
     max_pool_size: int = 5
 
 
-def load_database_settings() -> DatabaseSettings:
-    url = os.environ.get("LOCAL_DATABASE_URL") or os.environ.get(
-        "SUPABASE_DEVELOPMENT_DATABASE_URL"
+def resolve_database_url() -> str:
+    """Return the direct Postgres URL for the Supabase Cloud project."""
+    from isometric_persistence.env_files import load_repo_dotenv
+
+    load_repo_dotenv()
+    for name in (
+        "SUPABASE_DATABASE_URL",
+        "SUPABASE_DEVELOPMENT_DATABASE_URL",
+    ):
+        url = os.environ.get(name)
+        if url:
+            return url
+    raise RuntimeError(
+        "Set SUPABASE_DATABASE_URL to the Supabase direct Postgres connection string"
     )
-    if not url:
-        raise RuntimeError(
-            "Set LOCAL_DATABASE_URL or SUPABASE_DEVELOPMENT_DATABASE_URL"
-        )
-    return DatabaseSettings(url=url)
+
+
+def load_database_settings() -> DatabaseSettings:
+    return DatabaseSettings(url=resolve_database_url())

@@ -15,7 +15,7 @@ from isometric_persistence.artifacts import (
     FilesystemArtifactStore,
     sha256_hex,
 )
-from isometric_persistence.config import DatabaseSettings
+from isometric_persistence.config import DatabaseSettings, resolve_database_url
 from isometric_persistence.db import DatabasePool
 from isometric_persistence.errors import ConflictError
 from isometric_persistence.keys import revision_scene_key
@@ -36,10 +36,10 @@ FIXTURE_PATH = (
 
 
 def require_database() -> DatabaseSettings:
-    url = os.environ.get("LOCAL_DATABASE_URL")
-    if not url:
-        raise unittest.SkipTest("LOCAL_DATABASE_URL is not set")
-    return DatabaseSettings(url=url)
+    try:
+        return DatabaseSettings(url=resolve_database_url())
+    except RuntimeError:
+        raise unittest.SkipTest("SUPABASE_DATABASE_URL is not set") from None
 
 
 class PersistenceExitChecks(unittest.TestCase):

@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Emit shell exports from .env. Usage: eval "$(./scripts/load-env)"
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ENV_FILE="$ROOT/.env"
+if [[ ! -f "$ENV_FILE" ]]; then
+  exit 0
+fi
+if [[ ! -x "$ROOT/.venv/bin/python" ]]; then
+  echo "load-env: run ./scripts/setup first" >&2
+  exit 1
+fi
+"$ROOT/.venv/bin/python" - "$ENV_FILE" <<'PY'
+import os
+import shlex
+import sys
+from pathlib import Path
+
+from dotenv import dotenv_values
+
+path = Path(sys.argv[1])
+for key, value in dotenv_values(path).items():
+    if value is None or key == "":
+        continue
+    if key in os.environ:
+        continue
+    print(f"export {key}={shlex.quote(value)}")
+PY

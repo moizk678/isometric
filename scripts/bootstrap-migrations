@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Record already-applied repo migrations when drawing schema exists on Supabase.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+if [[ -f .env ]]; then
+  set -a
+  # shellcheck disable=SC1090
+  eval "$(./scripts/load-env)"
+  set +a
+fi
+
+PYTHONPATH=packages/persistence .venv/bin/python - <<'PY'
+import hashlib
+
+from isometric_persistence.config import load_database_settings
+from isometric_persistence.db import DatabasePool
+from isometric_persistence.migrate import ensure_tracking_table, migration_files
+
+BASELINE_VERSIONS = frozenset({"20260925203821", "20260925204703"})
+
+pool = DatabasePool(load_database_settings())
+with pool.connection() as conn:
+    ensure_tracking_table(conn)
+    has_drawing = conn.execute(
+        "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'drawing')"
+    ).fetchone()["exists"]
+    for version, path in migration_files():
+        sql = path.read_text(encoding="utf-8")
+        checksum = hashlib.sha256(sql.encode("utf-8")).hexdigest()
+        if conn.execute(
+            "SELECT 1 FROM public.schema_migrations WHERE version = %s",
+            (version,),
+        ).fetchone():
+            continue
+        if has_drawing and version in BASELINE_VERSIONS:
+            conn.execute(
+                "INSERT INTO public.schema_migrations (version, checksum_sha256) VALUES (%s, %s)",
+                (version, checksum),
+            )
+            print(f"baselined {path.name}")
+            continue
+        conn.execute(sql)
+        conn.execute(
+            "INSERT INTO public.schema_migrations (version, checksum_sha256) VALUES (%s, %s)",
+            (version, checksum),
+        )
+        print(f"applied {path.name}")
+    conn.commit()
+pool.close()
+print("bootstrap ok")
+PY

@@ -8,10 +8,11 @@ Install Python **3.12.12**, Node **26.0.0**, and pnpm **10.23.0**. On a fresh ch
 
 ```sh
 ./scripts/setup
+SUPABASE_DB_PASSWORD='…' ./scripts/setup-env   # writes .env (Supabase cloud)
 ./scripts/check
 ```
 
-`setup` creates `.venv`, installs pinned Python development dependencies from `requirements-dev.lock`, and installs the pnpm workspace from `pnpm-lock.yaml`. Run 03 checks require `LOCAL_DATABASE_URL` (see [persistence](docs/persistence.md)). Keep environment values in an untracked `.env`; `.env.example` documents names only.
+`setup` creates `.venv` and installs dependencies. `setup-env` writes `.env` and `apps/web/.env.local` for the **isometric** Supabase project (`bhezwfoifroyidfwdvcy`). Scripts auto-load `.env` via `python-dotenv`. See [persistence](docs/persistence.md).
 
 Individual checks:
 
