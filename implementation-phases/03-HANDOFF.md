@@ -26,6 +26,7 @@
 | `./scripts/test-persistence` | Pass | 10 Run 03 exit-check tests. |
 | `./scripts/check` | Pass | Ruff, scene schema, render goldens, API/pipeline/web/persistence. |
 | Supabase Cloud migration | Pass | `drawing_schema` applied via MCP to project `bhezwfoifroyidfwdvcy`. |
+| Hosted CI (`Check`) | Pass | Run [`36189876699`](https://github.com/moizk678/isometric/actions/runs/36189876699) on `1ed76af`, pushed together with Run 03 commit `fe4a055`; Postgres 17 service, full `./scripts/check`. |
 
 ## Data used
 

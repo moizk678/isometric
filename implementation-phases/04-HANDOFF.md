@@ -25,6 +25,7 @@
 |---|---|---|
 | `./scripts/test-api` | Pass | 21 integration tests: E2E upload, idempotency (bytes and options), cancel, duplicate delivery, lease recovery, crash/retry, error classes, JPEG/oversize, auth isolation, missing artifact, job progress/review_state. |
 | `./scripts/check` | Pass | Full gate with persistence and pipeline (when `LOCAL_DATABASE_URL` is set). |
+| Hosted CI (`Check`) | Pass | Run [`36189876699`](https://github.com/moizk678/isometric/actions/runs/36189876699) on `1ed76af`. |
 
 ## Data used
 
