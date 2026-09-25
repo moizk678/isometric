@@ -21,10 +21,20 @@ from PIL import Image, ImageOps
 from psycopg.errors import UniqueViolation
 
 from .deps import AppState, get_owner_id, get_state
-from .errors import ApiError
+from .errors import ApiError, error_responses
+from .schemas import (
+    DocumentCreateResponse,
+    DocumentDetailResponse,
+    DocumentListResponse,
+    JobCancelResponse,
+    JobResponse,
+    ReviewItemListResponse,
+    RevisionListResponse,
+)
 from .upload import sanitize_original_filename, validate_upload
 
-router = APIRouter(prefix="/api/v1")
+router = APIRouter(prefix="/api/v1", responses=error_responses(400, 401, 500))
+_OWNED = error_responses(403, 404)
 
 
 def _maybe_run_worker(request: Request) -> None:
@@ -108,7 +118,12 @@ def _job_updated_at_iso(job: Any) -> str | None:
     return str(updated)
 
 
-@router.post("/documents", status_code=202)
+@router.post(
+    "/documents",
+    status_code=202,
+    response_model=DocumentCreateResponse,
+    responses=error_responses(409, 413, 415),
+)
 async def create_document(
     request: Request,
     file: UploadFile = File(...),  # noqa: B008
@@ -215,7 +230,7 @@ async def create_document(
     return {"document_id": str(document_id), "job_id": str(job_id), "status": "queued"}
 
 
-@router.get("/documents")
+@router.get("/documents", response_model=DocumentListResponse)
 def list_documents(
     request: Request,
     limit: int = Query(default=20, ge=1, le=100),
@@ -256,7 +271,11 @@ def list_documents(
     return {"items": items, "limit": limit, "offset": offset}
 
 
-@router.get("/documents/{document_id}")
+@router.get(
+    "/documents/{document_id}",
+    response_model=DocumentDetailResponse,
+    responses=_OWNED,
+)
 def get_document(request: Request, document_id: uuid.UUID) -> dict[str, Any]:
     owner_id = get_owner_id(request)
     state = get_state(request)
@@ -294,7 +313,7 @@ def get_document(request: Request, document_id: uuid.UUID) -> dict[str, Any]:
     }
 
 
-@router.get("/documents/{document_id}/source")
+@router.get("/documents/{document_id}/source", responses=_OWNED)
 def get_document_source(request: Request, document_id: uuid.UUID) -> Response:
     owner_id = get_owner_id(request)
     state = get_state(request)
@@ -308,7 +327,7 @@ def get_document_source(request: Request, document_id: uuid.UUID) -> Response:
     return Response(content=data, media_type=doc.source_mime)
 
 
-@router.get("/documents/{document_id}/display")
+@router.get("/documents/{document_id}/display", responses=_OWNED)
 def get_document_display(request: Request, document_id: uuid.UUID) -> Response:
     owner_id = get_owner_id(request)
     state = get_state(request)
@@ -328,7 +347,11 @@ def get_document_display(request: Request, document_id: uuid.UUID) -> Response:
     return Response(content=out.getvalue(), media_type="image/png")
 
 
-@router.get("/documents/{document_id}/revisions")
+@router.get(
+    "/documents/{document_id}/revisions",
+    response_model=RevisionListResponse,
+    responses=_OWNED,
+)
 def list_revisions(request: Request, document_id: uuid.UUID) -> dict[str, Any]:
     owner_id = get_owner_id(request)
     state = get_state(request)
@@ -360,7 +383,7 @@ def list_revisions(request: Request, document_id: uuid.UUID) -> dict[str, Any]:
     }
 
 
-@router.get("/documents/{document_id}/revisions/{revision_id}/scene")
+@router.get("/documents/{document_id}/revisions/{revision_id}/scene", responses=_OWNED)
 def get_revision_scene(
     request: Request, document_id: uuid.UUID, revision_id: uuid.UUID
 ) -> Response:
@@ -380,7 +403,11 @@ def get_revision_scene(
     return Response(content=data, media_type="application/json")
 
 
-@router.get("/documents/{document_id}/revisions/{revision_id}/review-items")
+@router.get(
+    "/documents/{document_id}/revisions/{revision_id}/review-items",
+    response_model=ReviewItemListResponse,
+    responses=_OWNED,
+)
 def get_review_items(
     request: Request, document_id: uuid.UUID, revision_id: uuid.UUID
 ) -> dict[str, Any]:
@@ -413,7 +440,10 @@ def get_review_items(
     }
 
 
-@router.get("/documents/{document_id}/revisions/{revision_id}/exports/{kind}")
+@router.get(
+    "/documents/{document_id}/revisions/{revision_id}/exports/{kind}",
+    responses=_OWNED,
+)
 def get_export(
     request: Request, document_id: uuid.UUID, revision_id: uuid.UUID, kind: str
 ) -> Response:
@@ -437,7 +467,7 @@ def get_export(
     return Response(content=data, media_type=media)
 
 
-@router.get("/jobs/{job_id}")
+@router.get("/jobs/{job_id}", response_model=JobResponse, responses=_OWNED)
 def get_job(request: Request, job_id: uuid.UUID) -> dict[str, Any]:
     owner_id = get_owner_id(request)
     state = get_state(request)
@@ -474,7 +504,9 @@ def get_job(request: Request, job_id: uuid.UUID) -> dict[str, Any]:
     }
 
 
-@router.post("/jobs/{job_id}/cancel")
+@router.post(
+    "/jobs/{job_id}/cancel", response_model=JobCancelResponse, responses=_OWNED
+)
 def cancel_job(request: Request, job_id: uuid.UUID) -> dict[str, Any]:
     owner_id = get_owner_id(request)
     state = get_state(request)

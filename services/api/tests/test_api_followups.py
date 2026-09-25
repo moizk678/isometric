@@ -127,6 +127,67 @@ class ApiFollowupsTest(unittest.TestCase):
         finally:
             os.environ.pop("ENABLE_API_TEST_HOOKS", None)
 
+    def _assert_envelope(self, response, status: int, code: str) -> dict:
+        self.assertEqual(response.status_code, status)
+        body = response.json()
+        self.assertEqual(set(body), {"code", "message", "request_id"})
+        self.assertEqual(body["code"], code)
+        self.assertEqual(response.headers.get("X-Request-Id"), body["request_id"])
+        return body
+
+    def test_unknown_path_envelope(self) -> None:
+        response = self.client.get("/api/v1/no-such-route", headers=self._headers())
+        self._assert_envelope(response, 404, "not_found")
+
+    def test_method_not_allowed_envelope(self) -> None:
+        response = self.client.get(
+            f"/api/v1/jobs/{uuid.uuid4()}/cancel", headers=self._headers()
+        )
+        self._assert_envelope(response, 405, "method_not_allowed")
+        self.assertEqual(response.headers.get("Allow"), "POST")
+
+    def test_openapi_success_bodies_are_typed(self) -> None:
+        spec = self.client.app.openapi()
+        components = spec["components"]["schemas"]
+
+        def success_schema(path: str, method: str, status: str) -> dict:
+            content = spec["paths"][path][method]["responses"][status]["content"]
+            ref = content["application/json"]["schema"]["$ref"]
+            return components[ref.rsplit("/", 1)[-1]]
+
+        doc_list = success_schema("/api/v1/documents", "get", "200")
+        item_ref = doc_list["properties"]["items"]["items"]["$ref"]
+        item = components[item_ref.rsplit("/", 1)[-1]]
+        detail = success_schema("/api/v1/documents/{document_id}", "get", "200")
+        for schema in (item, detail):
+            self.assertIn("original_filename", schema["properties"])
+            self.assertIn("profile_id", schema["properties"])
+
+        job = success_schema("/api/v1/jobs/{job_id}", "get", "200")
+        self.assertIn("updated_at", job["properties"])
+        self.assertIn("review_item_count", job["properties"])
+        progress_ref = job["properties"]["progress"]["$ref"]
+        progress = components[progress_ref.rsplit("/", 1)[-1]]
+        self.assertEqual(set(progress["properties"]), {"stage", "attempt"})
+
+        created = success_schema("/api/v1/documents", "post", "202")
+        self.assertIn("document_id", created["properties"])
+
+    def test_openapi_errors_use_envelope_not_422(self) -> None:
+        spec = self.client.app.openapi()
+        envelope = spec["components"]["schemas"]["ErrorResponse"]
+        self.assertEqual(set(envelope["required"]), {"code", "message", "request_id"})
+        self.assertNotIn("HTTPValidationError", spec["components"]["schemas"])
+        for path, item in spec["paths"].items():
+            for method, operation in item.items():
+                responses = operation["responses"]
+                self.assertNotIn("422", responses, f"{method} {path}")
+                bad_request = responses["400"]["content"]["application/json"]
+                self.assertTrue(
+                    bad_request["schema"]["$ref"].endswith("/ErrorResponse"),
+                    f"{method} {path}",
+                )
+
     def test_concurrent_same_key_upload_not_500(self) -> None:
         owner = f"race-{uuid.uuid4()}"
         key = f"race-key-{uuid.uuid4()}"

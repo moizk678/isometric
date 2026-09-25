@@ -3,9 +3,36 @@
 from __future__ import annotations
 
 import uuid
+from typing import Any
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
+
+from .schemas import ErrorResponse
+
+_ERROR_DESCRIPTIONS = {
+    400: "Invalid request",
+    401: "Missing caller identity",
+    403: "Forbidden",
+    404: "Not found",
+    405: "Method not allowed",
+    409: "Conflict",
+    413: "Payload too large",
+    415: "Unsupported media type",
+    500: "Internal server error",
+}
+
+HTTP_ERROR_CODES = {
+    404: ("not_found", "resource not found"),
+    405: ("method_not_allowed", "method not allowed"),
+}
+
+
+def error_responses(*statuses: int) -> dict[int | str, dict[str, Any]]:
+    return {
+        status: {"model": ErrorResponse, "description": _ERROR_DESCRIPTIONS[status]}
+        for status in statuses
+    }
 
 
 class ApiError(Exception):
