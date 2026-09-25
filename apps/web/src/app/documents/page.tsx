@@ -1,10 +1,9 @@
-import { EmptyState } from '@/components/ui';
+import { DocumentList } from '@/components/documents/DocumentList';
 
 export default function DocumentsPage() {
   return (
-    <EmptyState
-      title="Documents"
-      description="The document list arrives in the next wave. Navigation and shell are wired for local development."
-    />
+    <div className="min-w-0 max-w-full">
+      <DocumentList />
+    </div>
   );
 }

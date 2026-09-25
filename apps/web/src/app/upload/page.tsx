@@ -1,10 +1,12 @@
-import { EmptyState } from '@/components/ui';
+import { Panel } from '@/components/ui';
+import { UploadZone } from '@/components/upload/UploadZone';
 
 export default function UploadPage() {
   return (
-    <EmptyState
-      title="Upload"
-      description="Upload flow will be implemented in Wave 2. This route exists so builds and navigation succeed."
-    />
+    <div className="min-w-0 max-w-full">
+      <Panel title="Upload" description="Add a PNG or JPEG isometric drawing to start processing.">
+        <UploadZone />
+      </Panel>
+    </div>
   );
 }

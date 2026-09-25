@@ -25,6 +25,32 @@ describe('apiFetch', () => {
     );
   });
 
+  it('sets Content-Type application/json for JSON bodies but not for FormData', async () => {
+    const fetchMock = vi.fn(async () =>
+      new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const formData = new FormData();
+    formData.append('file', new Blob(['x'], { type: 'text/plain' }), 'x.txt');
+    await apiFetch('/upload', { method: 'POST', body: formData });
+
+    const formHeaders = (fetchMock.mock.calls[0][1] as RequestInit).headers as Headers;
+    expect(formHeaders.has('Content-Type')).toBe(false);
+
+    fetchMock.mockClear();
+    await apiFetch('/documents', {
+      method: 'POST',
+      body: JSON.stringify({ name: 'doc' }),
+    });
+
+    const jsonHeaders = (fetchMock.mock.calls[0][1] as RequestInit).headers as Headers;
+    expect(jsonHeaders.get('Content-Type')).toBe('application/json');
+  });
+
   it('throws ApiError with code and request_id from the error envelope', async () => {
     vi.stubGlobal(
       'fetch',

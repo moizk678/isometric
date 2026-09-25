@@ -1,13 +1,20 @@
-import { EmptyState } from '@/components/ui';
+import { Suspense } from 'react';
+import { Panel, ProgressBar } from '@/components/ui';
+import { Workbench } from '@/components/workbench/Workbench';
 
 type PageProps = { params: Promise<{ documentId: string }> };
 
 export default async function DocumentWorkbenchPage({ params }: PageProps) {
   const { documentId } = await params;
   return (
-    <EmptyState
-      title="Review workbench"
-      description={`Workbench for document ${documentId} will be built in Wave 2.`}
-    />
+    <Suspense
+      fallback={
+        <Panel>
+          <ProgressBar label="Loading drawing" />
+        </Panel>
+      }
+    >
+      <Workbench documentId={documentId} />
+    </Suspense>
   );
 }
