@@ -40,7 +40,9 @@ DOC_ID = "00000000-0000-4000-8000-000000000300"
 
 def _ensure_fixtures() -> None:
     if not (FIXTURES / "abbrev-conn.png").is_file():
-        spec = importlib.util.spec_from_file_location("ocr_generate", FIXTURES / "generate.py")
+        spec = importlib.util.spec_from_file_location(
+            "ocr_generate", FIXTURES / "generate.py"
+        )
         assert spec and spec.loader
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
@@ -316,7 +318,9 @@ class HandwritingOcrTest(unittest.TestCase):
             region_crops={"region_0005": _encode_crop(crop)},
             ocr_engine=engine,
         )
-        self.assertIn("ocr.low_confidence", {i.code for i in result.metadata.review_items})
+        self.assertIn(
+            "ocr.low_confidence", {i.code for i in result.metadata.review_items}
+        )
 
     def test_topology_context_attached(self) -> None:
         regions = _regions_meta([_region("region_0006", "text", 100, 100, 40, 20)])

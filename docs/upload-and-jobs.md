@@ -18,6 +18,8 @@ export SKIP_INLINE_WORKER=1   # optional: defer processing
 ./scripts/run-worker-once
 ```
 
+`./scripts/test-api` sets `SKIP_INLINE_WORKER=1` and `ISOMETRIC_WORKER_FIXTURE_ONLY=1` so integration tests validate upload/jobs/revisions without running the full CV pipeline against cloud Postgres. One follow-up test still runs the full worker for mask artifacts.
+
 ## Authentication (development)
 
 Send `X-Owner-Id` on every request. Documents and jobs are scoped to that owner until Run 18 adds real auth.

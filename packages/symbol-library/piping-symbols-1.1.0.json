@@ -1,0 +1,244 @@
+{
+  "version": "piping-symbols@1.1.0",
+  "units": "px",
+  "symbols": [
+    {
+      "id": "ball_valve",
+      "label": "Ball valve",
+      "aliases": ["BV", "ball valve", "valve"],
+      "anchor": { "x": 0, "y": 0 },
+      "allowedAttachments": {
+        "nodeKinds": ["endpoint", "unknown"],
+        "minIncidentEdges": 2,
+        "maxIncidentEdges": 2
+      },
+      "ports": [
+        { "name": "inlet", "x": -20, "y": 0, "required": true },
+        { "name": "outlet", "x": 20, "y": 0, "required": true }
+      ],
+      "primitives": [
+        {
+          "kind": "polygon",
+          "points": [[-20, -10], [-20, 10], [20, -10], [20, 10]],
+          "fill": false
+        },
+        { "kind": "circle", "points": [[0, 0]], "r": 4, "fill": true }
+      ]
+    },
+    {
+      "id": "block_bleed_assembly",
+      "label": "Block and bleed assembly",
+      "aliases": ["block bleed", "block+bleed", "BBV"],
+      "anchor": { "x": 0, "y": 0 },
+      "allowedAttachments": {
+        "nodeKinds": ["endpoint", "unknown"],
+        "minIncidentEdges": 2,
+        "maxIncidentEdges": 3
+      },
+      "ports": [
+        { "name": "inlet", "x": -20, "y": 0, "required": true },
+        { "name": "outlet", "x": 20, "y": 0, "required": true },
+        { "name": "bleed", "x": 0, "y": -16, "required": false }
+      ],
+      "primitives": [
+        {
+          "kind": "polygon",
+          "points": [[-18, -8], [-18, 8], [18, -8], [18, 8]],
+          "fill": false
+        },
+        {
+          "kind": "line",
+          "points": [[0, -8], [0, -16]],
+          "fill": false
+        }
+      ]
+    },
+    {
+      "id": "drop",
+      "label": "Drop",
+      "aliases": ["drop", "DRP"],
+      "anchor": { "x": 0, "y": 0 },
+      "allowedAttachments": {
+        "nodeKinds": ["endpoint", "tee", "elbow", "unknown"],
+        "minIncidentEdges": 1,
+        "maxIncidentEdges": 2
+      },
+      "ports": [{ "name": "pipe", "x": 0, "y": -12, "required": true }],
+      "primitives": [
+        {
+          "kind": "polygon",
+          "points": [[0, 12], [-10, -8], [10, -8]],
+          "fill": false
+        }
+      ]
+    },
+    {
+      "id": "elbow_fitting",
+      "label": "Elbow fitting",
+      "aliases": ["elbow", "ELL"],
+      "anchor": { "x": 0, "y": 0 },
+      "allowedAttachments": {
+        "nodeKinds": ["elbow", "unknown"],
+        "minIncidentEdges": 2,
+        "maxIncidentEdges": 2
+      },
+      "ports": [
+        { "name": "a", "x": -20, "y": 0, "required": true },
+        { "name": "b", "x": 0, "y": -20, "required": true }
+      ],
+      "primitives": [
+        { "kind": "line", "points": [[-20, 0], [0, 0]], "fill": false },
+        { "kind": "line", "points": [[0, 0], [0, -20]], "fill": false }
+      ]
+    },
+    {
+      "id": "endpoint",
+      "label": "Endpoint",
+      "aliases": ["end cap", "cap"],
+      "anchor": { "x": 0, "y": 0 },
+      "allowedAttachments": {
+        "nodeKinds": ["endpoint", "unknown"],
+        "minIncidentEdges": 1,
+        "maxIncidentEdges": 1
+      },
+      "ports": [{ "name": "pipe", "x": 0, "y": 0, "required": true }],
+      "primitives": [
+        { "kind": "line", "points": [[0, -10], [0, 10]], "fill": false }
+      ]
+    },
+    {
+      "id": "equipment_connection",
+      "label": "Equipment connection",
+      "aliases": ["equipment", "machine", "EQ"],
+      "anchor": { "x": 0, "y": 0 },
+      "allowedAttachments": {
+        "nodeKinds": ["endpoint", "unknown"],
+        "minIncidentEdges": 1,
+        "maxIncidentEdges": 2
+      },
+      "ports": [{ "name": "pipe", "x": -16, "y": 0, "required": true }],
+      "primitives": [
+        {
+          "kind": "polygon",
+          "points": [[-8, -12], [12, -12], [12, 12], [-8, 12]],
+          "fill": false
+        },
+        { "kind": "line", "points": [[-16, 0], [-8, 0]], "fill": false }
+      ]
+    },
+    {
+      "id": "flange",
+      "label": "Flange",
+      "aliases": ["flange", "FLG"],
+      "anchor": { "x": 0, "y": 0 },
+      "allowedAttachments": {
+        "nodeKinds": ["endpoint", "unknown"],
+        "minIncidentEdges": 1,
+        "maxIncidentEdges": 2
+      },
+      "ports": [
+        { "name": "pipe_a", "x": -16, "y": 0, "required": true },
+        { "name": "pipe_b", "x": 16, "y": 0, "required": false }
+      ],
+      "primitives": [
+        { "kind": "line", "points": [[-16, -10], [-16, 10]], "fill": false },
+        { "kind": "line", "points": [[16, -10], [16, 10]], "fill": false },
+        { "kind": "line", "points": [[-16, 0], [16, 0]], "fill": false }
+      ]
+    },
+    {
+      "id": "flow_arrow",
+      "label": "Flow arrow",
+      "aliases": ["flow", "arrow"],
+      "anchor": { "x": 0, "y": 0 },
+      "allowedAttachments": {
+        "nodeKinds": ["endpoint", "unknown"],
+        "minIncidentEdges": 1,
+        "maxIncidentEdges": 2
+      },
+      "ports": [{ "name": "stem", "x": -14, "y": 0, "required": false }],
+      "primitives": [
+        {
+          "kind": "polygon",
+          "points": [[14, 0], [-6, -8], [-6, 8]],
+          "fill": false
+        }
+      ]
+    },
+    {
+      "id": "riser",
+      "label": "Riser",
+      "aliases": ["riser", "RSR"],
+      "anchor": { "x": 0, "y": 0 },
+      "allowedAttachments": {
+        "nodeKinds": ["endpoint", "tee", "elbow", "unknown"],
+        "minIncidentEdges": 1,
+        "maxIncidentEdges": 2
+      },
+      "ports": [{ "name": "pipe", "x": 0, "y": 12, "required": true }],
+      "primitives": [
+        {
+          "kind": "polygon",
+          "points": [[0, -12], [-10, 8], [10, 8]],
+          "fill": false
+        }
+      ]
+    },
+    {
+      "id": "tee_fitting",
+      "label": "Tee fitting",
+      "aliases": ["tee", "T"],
+      "anchor": { "x": 0, "y": 0 },
+      "allowedAttachments": {
+        "nodeKinds": ["tee", "unknown"],
+        "minIncidentEdges": 3,
+        "maxIncidentEdges": 3
+      },
+      "ports": [
+        { "name": "run_a", "x": -20, "y": 0, "required": true },
+        { "name": "run_b", "x": 20, "y": 0, "required": true },
+        { "name": "branch", "x": 0, "y": -20, "required": true }
+      ],
+      "primitives": [
+        { "kind": "line", "points": [[-20, 0], [20, 0]], "fill": false },
+        { "kind": "line", "points": [[0, 0], [0, -20]], "fill": false }
+      ]
+    },
+    {
+      "id": "threaded_connection",
+      "label": "Threaded connection",
+      "aliases": ["threaded", "NPT", "thrd"],
+      "anchor": { "x": 0, "y": 0 },
+      "allowedAttachments": {
+        "nodeKinds": ["endpoint", "unknown"],
+        "minIncidentEdges": 1,
+        "maxIncidentEdges": 2
+      },
+      "ports": [{ "name": "pipe", "x": 0, "y": 0, "required": true }],
+      "primitives": [
+        { "kind": "line", "points": [[-12, -6], [12, 6]], "fill": false },
+        { "kind": "line", "points": [[-12, 6], [12, -6]], "fill": false }
+      ]
+    },
+    {
+      "id": "unknown",
+      "label": "Unknown symbol",
+      "aliases": [],
+      "anchor": { "x": 0, "y": 0 },
+      "allowedAttachments": {
+        "nodeKinds": [],
+        "minIncidentEdges": null,
+        "maxIncidentEdges": null
+      },
+      "ports": [
+        { "name": "port_1", "x": -20, "y": 0, "required": false },
+        { "name": "port_2", "x": 0, "y": -20, "required": false },
+        { "name": "port_3", "x": 20, "y": 0, "required": false },
+        { "name": "port_4", "x": 0, "y": 20, "required": false }
+      ],
+      "primitives": [
+        { "kind": "circle", "points": [[0, 0]], "r": 20, "fill": false }
+      ]
+    }
+  ]
+}

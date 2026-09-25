@@ -59,3 +59,25 @@ ocr:
     conn.: connection
     thrd: threaded
     maint: maintenance
+symbols:
+  library_version: piping-symbols@1.1.0
+  classifier_backend: template
+  allowed_symbol_ids:
+    - ball_valve
+    - block_bleed_assembly
+    - tee_fitting
+    - elbow_fitting
+    - flange
+    - threaded_connection
+    - drop
+    - riser
+    - endpoint
+    - flow_arrow
+    - equipment_connection
+    - unknown
+  min_shape_score: 0.35
+  min_context_score: 0.0
+  min_combined_margin: 0.08
+  port_attach_tolerance_px: 12.0
+  nearby_text_radius_px: 64.0
+  suppress_on_structural_junction: true

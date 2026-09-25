@@ -9,6 +9,7 @@ Changing a symbol ID, a port name, a port position, or whether a port is require
 | Version | File |
 | --- | --- |
 | `piping-symbols@1.0.0` | `piping-symbols-1.0.0.json` |
+| `piping-symbols@1.1.0` | `piping-symbols-1.1.0.json` |
 
 The bundled preview font is `fonts/LiberationSans-Regular.ttf`, with its license in `fonts/LICENSE`.
 
@@ -42,7 +43,8 @@ The bundled preview font is `fonts/LiberationSans-Regular.ttf`, with its license
 Rules:
 
 - The top-level keys are exactly `version`, `units`, and `symbols`. `version` must equal the version the file is loaded as. `units` is always `"px"`.
-- `symbols` is sorted by `id`. Each symbol has exactly the keys `id`, `label`, `ports`, and `primitives`.
+- `symbols` is sorted by `id`. For `piping-symbols@1.0.0`, each symbol has exactly the keys `id`, `label`, `ports`, and `primitives`.
+- For `piping-symbols@1.1.0`, each symbol may also include `aliases` (string array), `anchor` (`x`/`y` in symbol-local px), and `allowedAttachments` (`nodeKinds`, optional `minIncidentEdges` / `maxIncidentEdges`) for classification port binding. The renderer ignores those optional keys.
 - A symbol `id` matches `^[a-z][a-z0-9_]*$`. Port names within a symbol are unique.
 - A port has exactly the keys `name`, `x`, `y`, and `required`.
 - A primitive has `kind`, `points`, and `fill`. A circle also has `r`, and no other kind may have it.

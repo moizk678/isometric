@@ -117,9 +117,7 @@ def merge_collinear_segments(
         merged_any = False
         for i in range(len(current)):
             for j in range(i + 1, len(current)):
-                candidate = _try_merge_pair(
-                    current[i], current[j], profile, ink_mask
-                )
+                candidate = _try_merge_pair(current[i], current[j], profile, ink_mask)
                 if candidate is None:
                     continue
                 next_segments = [

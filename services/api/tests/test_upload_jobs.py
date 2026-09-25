@@ -49,6 +49,8 @@ class UploadJobsIntegrationTest(unittest.TestCase):
         cls.artifact_root = Path(tempfile.mkdtemp(prefix="isometric-api-artifacts-"))
         os.environ["ARTIFACT_ROOT"] = str(cls.artifact_root)
         os.environ["SUPABASE_DATABASE_URL"] = cls.db_url
+        os.environ["SKIP_INLINE_WORKER"] = "1"
+        os.environ["ISOMETRIC_WORKER_FIXTURE_ONLY"] = "1"
         cls.pool = DatabasePool(DatabaseSettings(url=cls.db_url))
         with cls.pool.connection() as conn:
             apply_migrations(conn)
@@ -58,6 +60,8 @@ class UploadJobsIntegrationTest(unittest.TestCase):
     @classmethod
     def tearDownClass(cls) -> None:
         cls.pool.close()
+        os.environ.pop("SKIP_INLINE_WORKER", None)
+        os.environ.pop("ISOMETRIC_WORKER_FIXTURE_ONLY", None)
 
     def _headers(self, owner: str = "owner-a") -> dict[str, str]:
         return {"X-Owner-Id": owner}
@@ -72,18 +76,28 @@ class UploadJobsIntegrationTest(unittest.TestCase):
         filename: str = "page.png",
         mime: str = "image/png",
         client: TestClient | None = None,
+        run_worker: bool = True,
     ):
         http = client or self.client
         files = {"file": (filename, data or tiny_png(), mime)}
         headers = self._headers(owner)
         if key:
             headers["Idempotency-Key"] = key
-        return http.post(
+        response = http.post(
             "/api/v1/documents",
             files=files,
             data={"profile_id": "piping_isometric", "options_json": options_json},
             headers=headers,
         )
+        if run_worker and response.status_code == 202:
+            job_id = response.json().get("job_id")
+            if job_id:
+                process_job(
+                    self.pool,
+                    http.app.state.runtime.store,
+                    uuid.UUID(job_id),
+                )
+        return response
 
     def test_valid_upload_reaches_fixture_revision_with_exports(self) -> None:
         response = self._upload()

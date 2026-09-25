@@ -22,6 +22,7 @@ from isometric_persistence.keys import (
     document_regions_metadata_key,
 )
 from isometric_persistence.migrate import apply_migrations
+from isometric_worker.processor import process_job
 from PIL import Image
 
 
@@ -55,12 +56,21 @@ class ApiFollowupsTest(unittest.TestCase):
         cls.artifact_root = Path(mkdtemp(prefix="isometric-w1a-artifacts-"))
         os.environ["ARTIFACT_ROOT"] = str(cls.artifact_root)
         os.environ["SUPABASE_DATABASE_URL"] = cls.db_url
-        pool = DatabasePool(DatabaseSettings(url=cls.db_url))
-        with pool.connection() as conn:
+        os.environ["SKIP_INLINE_WORKER"] = "1"
+        os.environ["ISOMETRIC_WORKER_FIXTURE_ONLY"] = "1"
+        os.environ["ISOMETRIC_FAKE_OCR"] = "1"
+        cls.pool = DatabasePool(DatabaseSettings(url=cls.db_url))
+        with cls.pool.connection() as conn:
             apply_migrations(conn)
             conn.commit()
-        pool.close()
         cls.client = TestClient(create_app())
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls.pool.close()
+        os.environ.pop("SKIP_INLINE_WORKER", None)
+        os.environ.pop("ISOMETRIC_WORKER_FIXTURE_ONLY", None)
+        os.environ.pop("ISOMETRIC_FAKE_OCR", None)
 
     def _headers(self, owner: str = "w1a-owner") -> dict[str, str]:
         return {"X-Owner-Id": owner}
@@ -72,17 +82,51 @@ class ApiFollowupsTest(unittest.TestCase):
         key: str | None = None,
         data: bytes | None = None,
         filename: str = "drawings/iso-42.png",
+        run_worker: bool = True,
     ):
         files = {"file": (filename, data or tiny_png(), "image/png")}
         headers = self._headers(owner)
         if key:
             headers["Idempotency-Key"] = key
-        return self.client.post(
+        response = self.client.post(
             "/api/v1/documents",
             files=files,
             data={"profile_id": "piping_isometric", "options_json": "{}"},
             headers=headers,
         )
+        if run_worker and response.status_code == 202:
+            job_id = response.json().get("job_id")
+            if job_id:
+                process_job(
+                    self.pool,
+                    self.client.app.state.runtime.store,
+                    uuid.UUID(job_id),
+                )
+        return response
+
+    def _post_upload(
+        self,
+        *,
+        owner: str,
+        files: dict,
+        data: dict[str, str],
+        run_worker: bool = True,
+    ):
+        response = self.client.post(
+            "/api/v1/documents",
+            files=files,
+            data=data,
+            headers=self._headers(owner),
+        )
+        if run_worker and response.status_code == 202:
+            job_id = response.json().get("job_id")
+            if job_id:
+                process_job(
+                    self.pool,
+                    self.client.app.state.runtime.store,
+                    uuid.UUID(job_id),
+                )
+        return response
 
     def test_filename_and_profile_round_trip(self) -> None:
         owner = f"meta-{uuid.uuid4()}"
@@ -250,11 +294,10 @@ class ApiFollowupsTest(unittest.TestCase):
     def test_display_exif_transpose_png_dimensions(self) -> None:
         owner = f"display-{uuid.uuid4()}"
         jpeg, expected_size = exif_rotated_jpeg()
-        created = self.client.post(
-            "/api/v1/documents",
+        created = self._post_upload(
+            owner=owner,
             files={"file": ("rotated.jpg", jpeg, "image/jpeg")},
             data={"profile_id": "piping_isometric", "options_json": "{}"},
-            headers=self._headers(owner),
         )
         self.assertEqual(created.status_code, 202)
         document_id = created.json()["document_id"]
@@ -271,11 +314,10 @@ class ApiFollowupsTest(unittest.TestCase):
         owner = f"display-cmyk-{uuid.uuid4()}"
         buf = io.BytesIO()
         Image.new("CMYK", (20, 10), color=(0, 0, 0, 0)).save(buf, format="JPEG")
-        created = self.client.post(
-            "/api/v1/documents",
+        created = self._post_upload(
+            owner=owner,
             files={"file": ("cmyk.jpg", buf.getvalue(), "image/jpeg")},
             data={"profile_id": "piping_isometric", "options_json": "{}"},
-            headers=self._headers(owner),
         )
         self.assertEqual(created.status_code, 202)
         document_id = created.json()["document_id"]
@@ -290,22 +332,34 @@ class ApiFollowupsTest(unittest.TestCase):
 
     def test_mask_and_region_artifacts_written_after_upload(self) -> None:
         owner = f"masks-{uuid.uuid4()}"
-        created = self._upload(owner=owner)
-        self.assertEqual(created.status_code, 202)
-        document_id = uuid.UUID(created.json()["document_id"])
-        masks_path = self.artifact_root / document_masks_metadata_key(
-            document_id
-        ).replace("/", os.sep)
-        regions_path = self.artifact_root / document_regions_metadata_key(
-            document_id
-        ).replace("/", os.sep)
-        geometry_path = (
-            self.artifact_root
-            / f"documents/{document_id}/masks/geometry-ink.png".replace("/", os.sep)
-        )
-        self.assertTrue(masks_path.is_file(), "worker should write masks.json")
-        self.assertTrue(regions_path.is_file(), "worker should write regions.json")
-        self.assertTrue(geometry_path.is_file(), "worker should write geometry-ink.png")
+        os.environ.pop("ISOMETRIC_WORKER_FIXTURE_ONLY", None)
+        try:
+            created = self._upload(owner=owner, run_worker=False)
+            self.assertEqual(created.status_code, 202)
+            job_id = uuid.UUID(created.json()["job_id"])
+            process_job(
+                self.pool,
+                self.client.app.state.runtime.store,
+                job_id,
+            )
+            document_id = uuid.UUID(created.json()["document_id"])
+            masks_path = self.artifact_root / document_masks_metadata_key(
+                document_id
+            ).replace("/", os.sep)
+            regions_path = self.artifact_root / document_regions_metadata_key(
+                document_id
+            ).replace("/", os.sep)
+            geometry_path = (
+                self.artifact_root
+                / f"documents/{document_id}/masks/geometry-ink.png".replace("/", os.sep)
+            )
+            self.assertTrue(masks_path.is_file(), "worker should write masks.json")
+            self.assertTrue(regions_path.is_file(), "worker should write regions.json")
+            self.assertTrue(
+                geometry_path.is_file(), "worker should write geometry-ink.png"
+            )
+        finally:
+            os.environ["ISOMETRIC_WORKER_FIXTURE_ONLY"] = "1"
 
     def test_display_served_from_normalize_artifact_after_upload(self) -> None:
         owner = f"display-cache-{uuid.uuid4()}"

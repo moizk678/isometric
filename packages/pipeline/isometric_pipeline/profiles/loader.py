@@ -26,6 +26,19 @@ class OcrProfile:
 
 
 @dataclass(frozen=True)
+class SymbolsProfile:
+    library_version: str
+    classifier_backend: str
+    allowed_symbol_ids: tuple[str, ...]
+    min_shape_score: float
+    min_context_score: float
+    min_combined_margin: float
+    port_attach_tolerance_px: float
+    nearby_text_radius_px: float
+    suppress_on_structural_junction: bool
+
+
+@dataclass(frozen=True)
 class TopologyProfile:
     endpoint_cluster_tolerance_px: float
     max_endpoint_angle_delta_deg: float
@@ -76,6 +89,7 @@ class PipingIsometricProfile:
     snapping: SnappingProfile
     topology: TopologyProfile
     ocr: OcrProfile
+    symbols: SymbolsProfile
 
 
 def _ocr_from_mapping(data: dict[str, object]) -> OcrProfile:
@@ -96,6 +110,23 @@ def _ocr_from_mapping(data: dict[str, object]) -> OcrProfile:
         context_radius_px=float(data["context_radius_px"]),
         vocabulary_terms=tuple(str(t) for t in terms_raw),
         abbreviations=MappingProxyType({str(k): str(v) for k, v in abbrev_raw.items()}),
+    )
+
+
+def _symbols_from_mapping(data: dict[str, object]) -> SymbolsProfile:
+    allowed_raw = data.get("allowed_symbol_ids", [])
+    if not isinstance(allowed_raw, list):
+        raise ValueError("symbols.allowed_symbol_ids must be a list")
+    return SymbolsProfile(
+        library_version=str(data["library_version"]),
+        classifier_backend=str(data["classifier_backend"]),
+        allowed_symbol_ids=tuple(str(s) for s in allowed_raw),
+        min_shape_score=float(data["min_shape_score"]),
+        min_context_score=float(data["min_context_score"]),
+        min_combined_margin=float(data["min_combined_margin"]),
+        port_attach_tolerance_px=float(data["port_attach_tolerance_px"]),
+        nearby_text_radius_px=float(data["nearby_text_radius_px"]),
+        suppress_on_structural_junction=bool(data["suppress_on_structural_junction"]),
     )
 
 
@@ -165,12 +196,16 @@ def _load_yaml_profile(path: Path) -> PipingIsometricProfile:
     ocr_raw = raw.get("ocr")
     if not isinstance(ocr_raw, dict):
         raise ValueError(f"profile ocr section missing: {path}")
+    symbols_raw = raw.get("symbols")
+    if not isinstance(symbols_raw, dict):
+        raise ValueError(f"profile symbols section missing: {path}")
     return PipingIsometricProfile(
         version=version,
         geometry=_geometry_from_mapping(geometry_raw),
         snapping=_snapping_from_mapping(snapping_raw),
         topology=_topology_from_mapping(topology_raw),
         ocr=_ocr_from_mapping(ocr_raw),
+        symbols=_symbols_from_mapping(symbols_raw),
     )
 
 

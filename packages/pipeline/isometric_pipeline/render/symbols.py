@@ -9,8 +9,14 @@ from pathlib import Path
 from typing import Any
 
 from .errors import RenderError, RenderIssue, RenderIssueCode
-from .types import SymbolDefinition, SymbolLibrary, SymbolPort, SymbolPrimitive
-from .versions import SYMBOL_LIBRARY_VERSION
+from .types import (
+    SymbolAllowedAttachments,
+    SymbolDefinition,
+    SymbolLibrary,
+    SymbolPort,
+    SymbolPrimitive,
+)
+from .versions import CLASSIFIER_SYMBOL_LIBRARY_VERSION, SYMBOL_LIBRARY_VERSION
 
 __all__ = ["SymbolLibrary", "load_symbol_library"]
 
@@ -19,15 +25,26 @@ _SYMBOL_ID_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 _COORD_MIN = -24.0
 _COORD_MAX = 24.0
 _TOP_LEVEL_KEYS = frozenset({"version", "units", "symbols"})
-_SYMBOL_KEYS = frozenset({"id", "label", "ports", "primitives"})
+_SYMBOL_KEYS_V10 = frozenset({"id", "label", "ports", "primitives"})
+_SYMBOL_KEYS_V11 = _SYMBOL_KEYS_V10 | frozenset(
+    {"aliases", "anchor", "allowedAttachments"}
+)
 _PORT_KEYS = frozenset({"name", "x", "y", "required"})
 _PRIMITIVE_KEYS = frozenset({"kind", "points", "fill"})
 _CIRCLE_EXTRA_KEYS = frozenset({"r"})
+_ANCHOR_KEYS = frozenset({"x", "y"})
+_ATTACHMENTS_KEYS = frozenset({"nodeKinds", "minIncidentEdges", "maxIncidentEdges"})
+
+_VERSION_FILES: dict[str, str] = {
+    SYMBOL_LIBRARY_VERSION: "piping-symbols-1.0.0.json",
+    CLASSIFIER_SYMBOL_LIBRARY_VERSION: "piping-symbols-1.1.0.json",
+}
 
 
 def load_symbol_library(version: str) -> SymbolLibrary:
     """Load a bundled library or raise ``RenderError`` ``VERSION_UNSUPPORTED``."""
-    if version != SYMBOL_LIBRARY_VERSION:
+    filename = _VERSION_FILES.get(version)
+    if filename is None:
         raise RenderError(
             [
                 RenderIssue(
@@ -39,12 +56,15 @@ def load_symbol_library(version: str) -> SymbolLibrary:
             ]
         )
 
-    path = _SYMBOL_LIBRARY_DIR / "piping-symbols-1.0.0.json"
+    path = _SYMBOL_LIBRARY_DIR / filename
     payload = json.loads(path.read_text(encoding="utf-8"))
-    return _parse_library(payload, version)
+    extended = version == CLASSIFIER_SYMBOL_LIBRARY_VERSION
+    return _parse_library(payload, version, extended_metadata=extended)
 
 
-def _parse_library(payload: Any, expected_version: str) -> SymbolLibrary:
+def _parse_library(
+    payload: Any, expected_version: str, *, extended_metadata: bool
+) -> SymbolLibrary:
     if not isinstance(payload, dict):
         raise ValueError("symbol library root must be an object")
     _reject_unknown_keys(payload, _TOP_LEVEL_KEYS, "symbol library")
@@ -73,7 +93,10 @@ def _parse_library(payload: Any, expected_version: str) -> SymbolLibrary:
     if not isinstance(raw_symbols, list):
         raise ValueError("symbols must be an array")
 
-    symbols = [_parse_symbol(entry, index) for index, entry in enumerate(raw_symbols)]
+    symbols = [
+        _parse_symbol(entry, index, extended_metadata=extended_metadata)
+        for index, entry in enumerate(raw_symbols)
+    ]
     ids = [symbol.id for symbol in symbols]
     if ids != sorted(ids):
         raise ValueError("symbols must be sorted by id")
@@ -81,11 +104,14 @@ def _parse_library(payload: Any, expected_version: str) -> SymbolLibrary:
     return SymbolLibrary(expected_version, symbols)
 
 
-def _parse_symbol(entry: Any, index: int) -> SymbolDefinition:
+def _parse_symbol(
+    entry: Any, index: int, *, extended_metadata: bool
+) -> SymbolDefinition:
     path = f"symbols[{index}]"
     if not isinstance(entry, dict):
         raise ValueError(f"{path} must be an object")
-    _reject_unknown_keys(entry, _SYMBOL_KEYS, path)
+    allowed_keys = _SYMBOL_KEYS_V11 if extended_metadata else _SYMBOL_KEYS_V10
+    _reject_unknown_keys(entry, allowed_keys, path)
 
     symbol_id = entry["id"]
     if not isinstance(symbol_id, str) or not _SYMBOL_ID_RE.fullmatch(symbol_id):
@@ -94,6 +120,43 @@ def _parse_symbol(entry: Any, index: int) -> SymbolDefinition:
     label = entry["label"]
     if not isinstance(label, str):
         raise ValueError(f"{path}.label must be a string")
+
+    aliases: tuple[str, ...] = ()
+    anchor_x = 0.0
+    anchor_y = 0.0
+    allowed_attachments: SymbolAllowedAttachments | None = None
+    if extended_metadata:
+        raw_aliases = entry.get("aliases", [])
+        if not isinstance(raw_aliases, list):
+            raise ValueError(f"{path}.aliases must be an array")
+        aliases = tuple(str(a) for a in raw_aliases)
+        anchor_raw = entry.get("anchor", {"x": 0, "y": 0})
+        if not isinstance(anchor_raw, dict):
+            raise ValueError(f"{path}.anchor must be an object")
+        _reject_unknown_keys(anchor_raw, _ANCHOR_KEYS, f"{path}.anchor")
+        anchor_x = _finite_number(anchor_raw["x"], f"{path}.anchor.x")
+        anchor_y = _finite_number(anchor_raw["y"], f"{path}.anchor.y")
+        _check_coord(anchor_x, f"{path}.anchor.x")
+        _check_coord(anchor_y, f"{path}.anchor.y")
+        attach_raw = entry.get(
+            "allowedAttachments",
+            {"nodeKinds": [], "minIncidentEdges": None, "maxIncidentEdges": None},
+        )
+        if not isinstance(attach_raw, dict):
+            raise ValueError(f"{path}.allowedAttachments must be an object")
+        _reject_unknown_keys(
+            attach_raw, _ATTACHMENTS_KEYS, f"{path}.allowedAttachments"
+        )
+        kinds_raw = attach_raw["nodeKinds"]
+        if not isinstance(kinds_raw, list):
+            raise ValueError(f"{path}.allowedAttachments.nodeKinds must be an array")
+        min_edges = attach_raw["minIncidentEdges"]
+        max_edges = attach_raw["maxIncidentEdges"]
+        allowed_attachments = SymbolAllowedAttachments(
+            node_kinds=frozenset(str(k) for k in kinds_raw),
+            min_incident_edges=int(min_edges) if min_edges is not None else None,
+            max_incident_edges=int(max_edges) if max_edges is not None else None,
+        )
 
     raw_ports = entry["ports"]
     if not isinstance(raw_ports, list):
@@ -119,6 +182,10 @@ def _parse_symbol(entry: Any, index: int) -> SymbolDefinition:
         label=label,
         ports=ports,
         primitives=primitives,
+        aliases=aliases,
+        anchor_x=anchor_x,
+        anchor_y=anchor_y,
+        allowed_attachments=allowed_attachments,
     )
 
 

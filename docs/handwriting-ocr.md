@@ -8,7 +8,7 @@ Stage `transcribe_regions` runs in **page pixel space** after Run 10 `infer_topo
 |---|---|---|---|
 | `transcribe_regions` | `transcribe_regions@1.0.0` | `documents/{id}/text-candidates.json` | `jobs/{jobId}/stages/transcribe_regions/{hash}/overlay.png` |
 
-Worker order: `normalize_page` → `separate_masks` → `detect_regions` → `extract_centerlines` → `fit_primitives` → `snap_primitives` → `infer_topology` → **`transcribe_regions`** → `fixture_process` (fixture scene publication unchanged).
+Worker order: `normalize_page` → `separate_masks` → `detect_regions` → `extract_centerlines` → `fit_primitives` → `snap_primitives` → `infer_topology` → **`transcribe_regions`** → `classify_symbol_regions` → `fixture_process` (fixture scene publication unchanged).
 
 ## Inputs
 
@@ -25,7 +25,7 @@ Worker order: `normalize_page` → `separate_masks` → `detect_regions` → `ex
 ## OCR backend
 
 - Production path: lazy-loaded `microsoft/trocr-base-handwritten` via `transformers`
-- CI/tests: `FakeOcrEngine` (no Hub download)
+- CI/tests: `FakeOcrEngine` (no Hub download); API tests set `ISOMETRIC_FAKE_OCR=1` for the inline worker
 - Optional live check: `ISOMETRIC_TROCR_INTEGRATION=1` unittest
 
 Real handwriting accuracy is **unmeasured** until labeled samples exist (Run 17).

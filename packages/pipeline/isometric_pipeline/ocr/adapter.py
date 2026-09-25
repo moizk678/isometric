@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from typing import Protocol
 
@@ -60,7 +61,9 @@ class TrocrEngine:
         if self._revision:
             kwargs["revision"] = self._revision
         self._processor = TrOCRProcessor.from_pretrained(self._model_id, **kwargs)
-        self._model = VisionEncoderDecoderModel.from_pretrained(self._model_id, **kwargs)
+        self._model = VisionEncoderDecoderModel.from_pretrained(
+            self._model_id, **kwargs
+        )
         self._model.eval()
 
     def recognize(self, image_rgb: np.ndarray, *, region_id: str) -> OcrRecognition:
@@ -86,4 +89,6 @@ class TrocrEngine:
 
 
 def default_ocr_engine(model_id: str, revision: str | None) -> OcrEngine:
+    if os.environ.get("ISOMETRIC_FAKE_OCR") == "1":
+        return FakeOcrEngine()
     return TrocrEngine(model_id, revision)

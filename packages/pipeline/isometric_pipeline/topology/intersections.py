@@ -30,14 +30,12 @@ def _segment_intersection(
     denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4)
     if abs(denom) < 1e-9:
         return None
-    px = (
-        (x1 * y2 - y1 * x2) * (x3 - x4) - (x1 - x2) * (x3 * y4 - y3 * x4)
-    ) / denom
-    py = (
-        (x1 * y2 - y1 * x2) * (y3 - y4) - (y1 - y2) * (x3 * y4 - y3 * x4)
-    ) / denom
+    px = ((x1 * y2 - y1 * x2) * (x3 - x4) - (x1 - x2) * (x3 * y4 - y3 * x4)) / denom
+    py = ((x1 * y2 - y1 * x2) * (y3 - y4) - (y1 - y2) * (x3 * y4 - y3 * x4)) / denom
 
-    def _param(x0: float, y0: float, x1p: float, y1p: float, x: float, y: float) -> float:
+    def _param(
+        x0: float, y0: float, x1p: float, y1p: float, x: float, y: float
+    ) -> float:
         dx, dy = x1p - x0, y1p - y0
         length_sq = dx * dx + dy * dy
         if length_sq < 1e-9:

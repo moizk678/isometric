@@ -257,6 +257,4 @@ def snap_all_primitives(
         [p for p in primitives if p.status in ("accepted", "uncertain")],
         key=lambda p: p.id,
     )
-    return [
-        snap_primitive(prim, axis_model, profile, regions) for prim in eligible
-    ]
+    return [snap_primitive(prim, axis_model, profile, regions) for prim in eligible]

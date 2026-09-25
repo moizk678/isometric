@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import uuid
 from pathlib import Path
 from typing import Any
@@ -23,6 +24,7 @@ from isometric_persistence.keys import (
     document_primitives_metadata_key,
     document_regions_metadata_key,
     document_snapped_primitives_metadata_key,
+    document_symbol_candidates_metadata_key,
     document_text_candidates_metadata_key,
     document_topology_metadata_key,
     job_stage_artifact_key,
@@ -45,6 +47,7 @@ from isometric_pipeline.normalize.page import (
     NormalizePageError,
     normalize_page,
 )
+from isometric_pipeline.ocr.artifact import TextCandidatesMetadata
 from isometric_pipeline.ocr.stage import transcribe_regions
 from isometric_pipeline.primitives.artifact import PrimitivesMetadata
 from isometric_pipeline.primitives.stage import fit_primitives
@@ -61,6 +64,7 @@ from isometric_pipeline.render.versions import RENDERER_VERSION
 from isometric_pipeline.scene import load_scene
 from isometric_pipeline.snapping.artifact import SnappedPrimitivesMetadata
 from isometric_pipeline.snapping.stage import snap_primitives
+from isometric_pipeline.symbol_candidates.stage import classify_symbol_regions
 from isometric_pipeline.topology.artifact import TopologyMetadata
 from isometric_pipeline.topology.stage import infer_topology
 from psycopg import Connection, OperationalError
@@ -74,6 +78,7 @@ from .fixture_fit import (
 )
 from .queue import JobQueue
 from .stages import (
+    CLASSIFY_SYMBOL_REGIONS_VERSION,
     DETECT_REGIONS_VERSION,
     EXTRACT_CENTERLINES_VERSION,
     FIT_PRIMITIVES_VERSION,
@@ -81,6 +86,7 @@ from .stages import (
     NORMALIZE_PAGE_VERSION,
     SEPARATE_MASKS_VERSION,
     SNAP_PRIMITIVES_VERSION,
+    STAGE_CLASSIFY_SYMBOL_REGIONS,
     STAGE_DETECT_REGIONS,
     STAGE_EXTRACT_CENTERLINES,
     STAGE_FIT_PRIMITIVES,
@@ -894,154 +900,119 @@ def _execute_transcribe_regions(
     return True
 
 
-def process_job(
+def _execute_classify_symbol_regions(
     pool: DatabasePool,
     store: ArtifactStore,
-    job_id: uuid.UUID,
+    jobs: JobRepository,
     *,
-    queue: JobQueue | None = None,
-) -> None:
-    jobs = JobRepository()
-    revs = RevisionRepository()
+    job_id: uuid.UUID,
+    document_id: uuid.UUID,
+    input_hash: str,
+    queue: JobQueue | None,
+) -> bool:
+    page_key = document_page_key(document_id)
+    regions_meta_key = document_regions_metadata_key(document_id)
+    topology_meta_key = document_topology_metadata_key(document_id)
+    text_meta_key = document_text_candidates_metadata_key(document_id)
+    symbol_meta_key = document_symbol_candidates_metadata_key(document_id)
+    try:
+        page_png = store.read(page_key)
+        regions_wire = json.loads(store.read(regions_meta_key).decode("utf-8"))
+        regions_metadata = RegionsMetadata.model_validate(regions_wire)
+        topology_metadata: TopologyMetadata | None = None
+        try:
+            topology_wire = json.loads(store.read(topology_meta_key).decode("utf-8"))
+            topology_metadata = TopologyMetadata.model_validate(topology_wire)
+        except (FileNotFoundError, PersistenceError, OSError, json.JSONDecodeError):
+            topology_metadata = None
+        text_metadata: TextCandidatesMetadata | None = None
+        try:
+            text_wire = json.loads(store.read(text_meta_key).decode("utf-8"))
+            text_metadata = TextCandidatesMetadata.model_validate(text_wire)
+        except (FileNotFoundError, PersistenceError, OSError, json.JSONDecodeError):
+            text_metadata = None
+        region_crops: dict[str, bytes] = {}
+        for region in regions_metadata.regions:
+            try:
+                region_crops[region.id] = store.read(
+                    document_crop_key(document_id, region.id)
+                )
+            except (FileNotFoundError, PersistenceError, OSError):
+                continue
+    except (FileNotFoundError, PersistenceError, OSError, json.JSONDecodeError):
+        _retry_or_exhaust(pool, jobs, job_id, queue)
+        return False
+
+    try:
+        classified = classify_symbol_regions(
+            page_png,
+            regions_metadata,
+            regions_json_uri=regions_meta_key,
+            symbol_candidates_json_uri=symbol_meta_key,
+            region_crops=region_crops or None,
+            topology=topology_metadata,
+            topology_json_uri=topology_meta_key if topology_metadata else None,
+            text_candidates=text_metadata,
+            text_candidates_json_uri=text_meta_key if text_metadata else None,
+        )
+    except Exception:
+        with pool.connection() as conn:
+            jobs.mark_failed(conn, job_id, "processing_invalid")
+            conn.commit()
+        return False
+
+    if not _job_still_active(pool, jobs, job_id):
+        return False
+
+    try:
+        store.write_immutable(symbol_meta_key, classified.symbol_candidates_json)
+        overlay_key = (
+            f"{job_stage_artifact_key(job_id, STAGE_CLASSIFY_SYMBOL_REGIONS, classified.content_hash)}"
+            "/overlay.png"
+        )
+        store.write_immutable(overlay_key, classified.overlay_png)
+    except (OSError, PersistenceError):
+        _retry_or_exhaust(pool, jobs, job_id, queue)
+        return False
+
     with pool.connection() as conn:
         job = jobs.get(conn, job_id)
-        if job is None:
-            return
-        if job.result_revision_id is not None:
-            return
-        if job.cancel_requested:
-            jobs.mark_canceled(conn, job_id)
-            conn.commit()
-            return
-        claimed = jobs.claim(conn, job_id=job_id)
-        if claimed is None:
-            return
+        if job is None or job.cancel_requested or job.result_revision_id is not None:
+            if job and job.cancel_requested:
+                jobs.mark_canceled(conn, job_id)
+                conn.commit()
+            return False
+        jobs.insert_stage_run(
+            conn,
+            job_id=job_id,
+            stage=STAGE_CLASSIFY_SYMBOL_REGIONS,
+            status=classified.status,
+            input_hash=input_hash,
+            producer_version=CLASSIFY_SYMBOL_REGIONS_VERSION,
+            artifact_uri=symbol_meta_key,
+            metrics=classified.metrics,
+            warnings=classified.warnings,
+        )
         conn.commit()
+    return True
 
-    document_id = claimed.document_id
-    revision_id = revision_id_for_job(job_id)
-    if _complete_if_revision_exists(
-        pool,
-        jobs,
-        revs,
-        job_id=job_id,
-        document_id=document_id,
-        revision_id=revision_id,
-    ):
-        return
 
-    with pool.connection() as conn:
-        document = DocumentRepository().get(conn, document_id)
-    source_bytes: bytes | None = None
-    if document is not None and FIXTURE_SCENE.is_file():
-        try:
-            source_bytes = store.read(document.source_uri)
-        except (FileNotFoundError, PersistenceError):
-            pass
-        except OSError:
-            _retry_or_exhaust(pool, jobs, job_id, queue)
-            return
-    if source_bytes is None:
-        with pool.connection() as conn:
-            jobs.mark_failed(conn, job_id, "missing_artifact")
-            conn.commit()
-        return
+def _fixture_only_worker() -> bool:
+    return os.environ.get("ISOMETRIC_WORKER_FIXTURE_ONLY") == "1"
 
-    if not _execute_normalize_page(
-        pool,
-        store,
-        jobs,
-        job_id=job_id,
-        document_id=document_id,
-        source_bytes=source_bytes,
-        input_hash=claimed.input_hash,
-        queue=queue,
-    ):
-        return
 
-    separated = _execute_separate_masks(
-        pool,
-        store,
-        jobs,
-        job_id=job_id,
-        document_id=document_id,
-        input_hash=claimed.input_hash,
-        queue=queue,
-    )
-    if separated is None:
-        return
-
-    if not _execute_detect_regions(
-        pool,
-        store,
-        jobs,
-        job_id=job_id,
-        document_id=document_id,
-        input_hash=claimed.input_hash,
-        queue=queue,
-        separated=separated,
-    ):
-        return
-
-    extracted = _execute_extract_centerlines(
-        pool,
-        store,
-        jobs,
-        job_id=job_id,
-        document_id=document_id,
-        input_hash=claimed.input_hash,
-        queue=queue,
-        separated=separated,
-    )
-    if extracted is None:
-        return
-
-    if not _execute_fit_primitives(
-        pool,
-        store,
-        jobs,
-        job_id=job_id,
-        document_id=document_id,
-        input_hash=claimed.input_hash,
-        queue=queue,
-        separated=separated,
-        extracted=extracted,
-    ):
-        return
-
-    if not _execute_snap_primitives(
-        pool,
-        store,
-        jobs,
-        job_id=job_id,
-        document_id=document_id,
-        input_hash=claimed.input_hash,
-        queue=queue,
-    ):
-        return
-
-    if not _execute_infer_topology(
-        pool,
-        store,
-        jobs,
-        job_id=job_id,
-        document_id=document_id,
-        input_hash=claimed.input_hash,
-        queue=queue,
-    ):
-        return
-
-    if not _execute_transcribe_regions(
-        pool,
-        store,
-        jobs,
-        job_id=job_id,
-        document_id=document_id,
-        input_hash=claimed.input_hash,
-        queue=queue,
-    ):
-        return
-
+def _publish_fixture_revision(
+    pool: DatabasePool,
+    store: ArtifactStore,
+    jobs: JobRepository,
+    revs: RevisionRepository,
+    *,
+    job_id: uuid.UUID,
+    document_id: uuid.UUID,
+    revision_id: uuid.UUID,
+    source_bytes: bytes,
+    queue: JobQueue | None,
+) -> None:
     try:
         scene_bytes, review_items = _fitted_scene(
             source_bytes, document_id, revision_id
@@ -1150,3 +1121,189 @@ def process_job(
         with pool.connection() as conn:
             jobs.mark_failed(conn, job_id, "processing_failed")
             conn.commit()
+
+
+def process_job(
+    pool: DatabasePool,
+    store: ArtifactStore,
+    job_id: uuid.UUID,
+    *,
+    queue: JobQueue | None = None,
+) -> None:
+    jobs = JobRepository()
+    revs = RevisionRepository()
+    with pool.connection() as conn:
+        job = jobs.get(conn, job_id)
+        if job is None:
+            return
+        if job.result_revision_id is not None:
+            return
+        if job.cancel_requested:
+            jobs.mark_canceled(conn, job_id)
+            conn.commit()
+            return
+        claimed = jobs.claim(conn, job_id=job_id)
+        if claimed is None:
+            return
+        conn.commit()
+
+    document_id = claimed.document_id
+    revision_id = revision_id_for_job(job_id)
+    if _complete_if_revision_exists(
+        pool,
+        jobs,
+        revs,
+        job_id=job_id,
+        document_id=document_id,
+        revision_id=revision_id,
+    ):
+        return
+
+    with pool.connection() as conn:
+        document = DocumentRepository().get(conn, document_id)
+    source_bytes: bytes | None = None
+    if document is not None and FIXTURE_SCENE.is_file():
+        try:
+            source_bytes = store.read(document.source_uri)
+        except (FileNotFoundError, PersistenceError):
+            pass
+        except OSError:
+            _retry_or_exhaust(pool, jobs, job_id, queue)
+            return
+    if source_bytes is None:
+        with pool.connection() as conn:
+            jobs.mark_failed(conn, job_id, "missing_artifact")
+            conn.commit()
+        return
+
+    if not _execute_normalize_page(
+        pool,
+        store,
+        jobs,
+        job_id=job_id,
+        document_id=document_id,
+        source_bytes=source_bytes,
+        input_hash=claimed.input_hash,
+        queue=queue,
+    ):
+        return
+
+    if _fixture_only_worker():
+        _publish_fixture_revision(
+            pool,
+            store,
+            jobs,
+            revs,
+            job_id=job_id,
+            document_id=document_id,
+            revision_id=revision_id,
+            source_bytes=source_bytes,
+            queue=queue,
+        )
+        return
+
+    separated = _execute_separate_masks(
+        pool,
+        store,
+        jobs,
+        job_id=job_id,
+        document_id=document_id,
+        input_hash=claimed.input_hash,
+        queue=queue,
+    )
+    if separated is None:
+        return
+
+    if not _execute_detect_regions(
+        pool,
+        store,
+        jobs,
+        job_id=job_id,
+        document_id=document_id,
+        input_hash=claimed.input_hash,
+        queue=queue,
+        separated=separated,
+    ):
+        return
+
+    extracted = _execute_extract_centerlines(
+        pool,
+        store,
+        jobs,
+        job_id=job_id,
+        document_id=document_id,
+        input_hash=claimed.input_hash,
+        queue=queue,
+        separated=separated,
+    )
+    if extracted is None:
+        return
+
+    if not _execute_fit_primitives(
+        pool,
+        store,
+        jobs,
+        job_id=job_id,
+        document_id=document_id,
+        input_hash=claimed.input_hash,
+        queue=queue,
+        separated=separated,
+        extracted=extracted,
+    ):
+        return
+
+    if not _execute_snap_primitives(
+        pool,
+        store,
+        jobs,
+        job_id=job_id,
+        document_id=document_id,
+        input_hash=claimed.input_hash,
+        queue=queue,
+    ):
+        return
+
+    if not _execute_infer_topology(
+        pool,
+        store,
+        jobs,
+        job_id=job_id,
+        document_id=document_id,
+        input_hash=claimed.input_hash,
+        queue=queue,
+    ):
+        return
+
+    if not _execute_transcribe_regions(
+        pool,
+        store,
+        jobs,
+        job_id=job_id,
+        document_id=document_id,
+        input_hash=claimed.input_hash,
+        queue=queue,
+    ):
+        return
+
+    if not _execute_classify_symbol_regions(
+        pool,
+        store,
+        jobs,
+        job_id=job_id,
+        document_id=document_id,
+        input_hash=claimed.input_hash,
+        queue=queue,
+    ):
+        return
+
+    _publish_fixture_revision(
+        pool,
+        store,
+        jobs,
+        revs,
+        job_id=job_id,
+        document_id=document_id,
+        revision_id=revision_id,
+        source_bytes=source_bytes,
+        queue=queue,
+    )

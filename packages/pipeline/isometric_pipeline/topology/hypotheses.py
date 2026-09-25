@@ -14,7 +14,10 @@ from isometric_pipeline.topology.artifact import (
     PagePoint,
     TopologyReviewItem,
 )
-from isometric_pipeline.topology.intersections import SegmentIntersection, angle_between_segments_at_point
+from isometric_pipeline.topology.intersections import (
+    SegmentIntersection,
+    angle_between_segments_at_point,
+)
 from isometric_pipeline.topology.segments import WorkingSegment
 
 

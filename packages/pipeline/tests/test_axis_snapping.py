@@ -87,9 +87,9 @@ def _run_fit_pipeline(mask_name: str, fixture_dir: Path = FIXTURES):
 
 def _blank_page(width: int = 400, height: int = 400) -> bytes:
     buf = io.BytesIO()
-    Image.fromarray(
-        np.full((height, width, 3), 255, dtype=np.uint8), mode="RGB"
-    ).save(buf, format="PNG")
+    Image.fromarray(np.full((height, width, 3), 255, dtype=np.uint8), mode="RGB").save(
+        buf, format="PNG"
+    )
     return buf.getvalue()
 
 
@@ -176,7 +176,10 @@ class AxisSnappingTest(unittest.TestCase):
                         x=length * math.cos(rad),
                         y=length * math.sin(rad),
                     ),
-                    samples=[(0.0, 0.0), (length * math.cos(rad), length * math.sin(rad))],
+                    samples=[
+                        (0.0, 0.0),
+                        (length * math.cos(rad), length * math.sin(rad)),
+                    ],
                     residual_rms_px=0.5,
                     stroke_width_px=4.0,
                     fit_metric=0.99,
@@ -204,7 +207,9 @@ class AxisSnappingTest(unittest.TestCase):
         primitives = _synthetic_rotated_primitives(15.0)
         result = _snap_from_fitted(page, primitives)
         self.assertGreater(result.axes_metadata.model_confidence, 0.25)
-        snapped = [c for c in result.snapped_metadata.candidates if c.status == "snapped"]
+        snapped = [
+            c for c in result.snapped_metadata.candidates if c.status == "snapped"
+        ]
         self.assertGreaterEqual(len(snapped), 2)
         for cand in snapped:
             ang = undirected_angle_deg(
@@ -229,7 +234,9 @@ class AxisSnappingTest(unittest.TestCase):
         result = _snap_from_fitted(page, primitives)
         self.assertTrue(
             result.axes_metadata.model_confidence
-            < load_piping_profile(DEFAULT_PIPING_PROFILE_VERSION).snapping.min_axis_model_confidence
+            < load_piping_profile(
+                DEFAULT_PIPING_PROFILE_VERSION
+            ).snapping.min_axis_model_confidence
             or all(c.status != "snapped" for c in result.snapped_metadata.candidates)
         )
 
@@ -336,7 +343,9 @@ class AxisSnappingTest(unittest.TestCase):
             return
         page, primitives = _run_fit_pipeline("rotated-isometric-triad.png")
         result = _snap_from_fitted(page, primitives)
-        snapped = sum(1 for c in result.snapped_metadata.candidates if c.status == "snapped")
+        snapped = sum(
+            1 for c in result.snapped_metadata.candidates if c.status == "snapped"
+        )
         total = len(result.snapped_metadata.candidates)
         print(f"tuning_report snapped={snapped}/{total}")
 

@@ -105,7 +105,9 @@ def transcribe_regions(
             width=region.bbox.width,
             height=region.bbox.height,
         )
-        topo_ref = nearby_topology(bbox, topology, max_distance_px=ocr_profile.context_radius_px)
+        topo_ref = nearby_topology(
+            bbox, topology, max_distance_px=ocr_profile.context_radius_px
+        )
         rotation_deg = 0.0
         if region_crops and region.id in region_crops:
             crop_rgb = _decode_crop_rgb(region_crops[region.id])
@@ -170,7 +172,10 @@ def transcribe_regions(
                         bbox=bbox,
                     )
                 )
-            elif ocr_confidence is not None and ocr_confidence < ocr_profile.min_confidence:
+            elif (
+                ocr_confidence is not None
+                and ocr_confidence < ocr_profile.min_confidence
+            ):
                 review_items.append(
                     OcrReviewItem(
                         id=f"rev_{uuid.uuid4().hex[:12]}",
@@ -196,7 +201,9 @@ def transcribe_regions(
 
         ocr_alternatives = [a for a in alternatives if a.source == "ocr"]
         if len(ocr_alternatives) >= 2:
-            ocr_alternatives = sorted(ocr_alternatives, key=lambda a: a.score, reverse=True)
+            ocr_alternatives = sorted(
+                ocr_alternatives, key=lambda a: a.score, reverse=True
+            )
             top = ocr_alternatives[0].score
             second = ocr_alternatives[1].score
             if top - second < ocr_profile.conflict_margin:

@@ -67,7 +67,11 @@ def _apply_known_terms(text: str, vocabulary: OcrVocabulary) -> str:
         if lower in vocabulary.terms:
             canonical = vocabulary.abbreviations.get(lower, bare)
             if canonical.isupper() or len(canonical) <= 4:
-                out.append(canonical.upper() if canonical.isalpha() and len(canonical) <= 4 else canonical)
+                out.append(
+                    canonical.upper()
+                    if canonical.isalpha() and len(canonical) <= 4
+                    else canonical
+                )
             else:
                 out.append(canonical)
         else:

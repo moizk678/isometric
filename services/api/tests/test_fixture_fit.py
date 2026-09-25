@@ -132,7 +132,9 @@ class FixtureFitIntegrationTest(unittest.TestCase):
 
     def setUp(self) -> None:
         os.environ["SKIP_INLINE_WORKER"] = "1"
+        os.environ["ISOMETRIC_WORKER_FIXTURE_ONLY"] = "1"
         self.addCleanup(os.environ.pop, "SKIP_INLINE_WORKER", None)
+        self.addCleanup(os.environ.pop, "ISOMETRIC_WORKER_FIXTURE_ONLY", None)
         self.owner = f"fit-{uuid.uuid4()}"
         self.pool = DatabasePool(DatabaseSettings(url=self.db_url))
         self.addCleanup(self.pool.close)

@@ -10,6 +10,7 @@ STAGE_FIT_PRIMITIVES = "fit_primitives"
 STAGE_SNAP_PRIMITIVES = "snap_primitives"
 STAGE_INFER_TOPOLOGY = "infer_topology"
 STAGE_TRANSCRIBE_REGIONS = "transcribe_regions"
+STAGE_CLASSIFY_SYMBOL_REGIONS = "classify_symbol_regions"
 STAGE_FIXTURE_PROCESS = "fixture_process"
 
 NORMALIZE_PAGE_VERSION = "normalize_page@1.0.0"
@@ -20,6 +21,7 @@ FIT_PRIMITIVES_VERSION = "fit_primitives@1.0.0"
 SNAP_PRIMITIVES_VERSION = "snap_primitives@1.0.0"
 INFER_TOPOLOGY_VERSION = "infer_topology@1.0.0"
 TRANSCRIBE_REGIONS_VERSION = "transcribe_regions@1.0.0"
+CLASSIFY_SYMBOL_REGIONS_VERSION = "classify_symbol_regions@1.0.0"
 FIXTURE_PROCESS_VERSION = "fixture@1.0.0"
 
 STAGE_ORDER = (
@@ -31,5 +33,6 @@ STAGE_ORDER = (
     STAGE_SNAP_PRIMITIVES,
     STAGE_INFER_TOPOLOGY,
     STAGE_TRANSCRIBE_REGIONS,
+    STAGE_CLASSIFY_SYMBOL_REGIONS,
     STAGE_FIXTURE_PROCESS,
 )

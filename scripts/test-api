@@ -9,6 +9,11 @@ if [[ -f .env ]]; then
 fi
 
 export PYTHONPATH="services/api:services/worker:packages/pipeline:packages/persistence"
+export PYTHONUNBUFFERED=1
+# Run 04/05 API tests exercise upload/jobs/revisions, not full CV (see docs/upload-and-jobs.md).
+export SKIP_INLINE_WORKER=1
+export ISOMETRIC_WORKER_FIXTURE_ONLY=1
+export ISOMETRIC_FAKE_OCR=1
 .venv/bin/python -m unittest discover -s services/api/tests -p 'test_*.py' -v
 .venv/bin/python -c 'import isometric_api; assert isometric_api.__version__ == "0.1.0"'
 .venv/bin/python -c 'import isometric_worker; assert isometric_worker.__version__ == "0.1.0"'

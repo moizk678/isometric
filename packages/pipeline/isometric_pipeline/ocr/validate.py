@@ -25,5 +25,7 @@ def validate_text_candidates(
     for item in metadata.review_items:
         if item.text_candidate_id:
             if item.text_candidate_id not in seen:
-                errors.append(f"review item references missing candidate {item.text_candidate_id}")
+                errors.append(
+                    f"review item references missing candidate {item.text_candidate_id}"
+                )
     return errors

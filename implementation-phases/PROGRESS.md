@@ -16,7 +16,7 @@ Update this file after a run's exit criteria pass. `planned` is not `complete`; 
 | 09 | complete | [handoff](09-HANDOFF.md) | `snap_primitives`, `axes.json` / `snapped-primitives.json`; fixture scene publish unchanged. |
 | 10 | complete | [handoff](10-HANDOFF.md) | `infer_topology`, `topology.json`; fixture scene publish unchanged. |
 | 11 | complete | [handoff](11-HANDOFF.md) | `transcribe_regions`, `text-candidates.json`; TrOCR + FakeOCR in CI; accuracy unmeasured on real handwriting. |
-| 12 | planned | — | Organization symbol standard requires sample drawings. |
+| 12 | complete | [handoff](12-HANDOFF.md) | `classify_symbol_regions`, `symbol-candidates.json`; template + Fake classifier in CI; per-class accuracy unmeasured on real drawings. |
 | 13 | planned | — | |
 | 14 | planned | — | |
 | 15 | planned | — | |

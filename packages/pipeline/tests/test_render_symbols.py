@@ -10,7 +10,10 @@ from pathlib import Path
 
 from isometric_pipeline.render.errors import RenderError, RenderIssueCode
 from isometric_pipeline.render.symbols import load_symbol_library
-from isometric_pipeline.render.versions import SYMBOL_LIBRARY_VERSION
+from isometric_pipeline.render.versions import (
+    CLASSIFIER_SYMBOL_LIBRARY_VERSION,
+    SYMBOL_LIBRARY_VERSION,
+)
 from isometric_pipeline.scene.validation import SymbolCatalog
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -89,6 +92,14 @@ class RenderSymbolsTest(unittest.TestCase):
     def test_bundled_font_matches_pinned_sha256(self) -> None:
         digest = hashlib.sha256(FONT_PATH.read_bytes()).hexdigest()
         self.assertEqual(digest, LIBERATION_SANS_REGULAR_SHA256)
+
+    def test_loads_classifier_library_version(self) -> None:
+        library = load_symbol_library(CLASSIFIER_SYMBOL_LIBRARY_VERSION)
+        self.assertIn("block_bleed_assembly", library.symbol_ids)
+        ball = library.get("ball_valve")
+        self.assertIsNotNone(ball)
+        assert ball is not None
+        self.assertIn("BV", ball.aliases)
 
     def test_library_json_has_no_raw_svg_or_urls(self) -> None:
         text = LIBRARY_JSON.read_text(encoding="utf-8")

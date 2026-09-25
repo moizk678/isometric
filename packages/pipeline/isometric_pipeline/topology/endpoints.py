@@ -41,9 +41,7 @@ def cluster_endpoints(
         refs.append(
             EndpointRef(seg.segment_id, 0, seg.start_x, seg.start_y, seg.layer_id)
         )
-        refs.append(
-            EndpointRef(seg.segment_id, 1, seg.end_x, seg.end_y, seg.layer_id)
-        )
+        refs.append(EndpointRef(seg.segment_id, 1, seg.end_x, seg.end_y, seg.layer_id))
     clusters: list[EndpointCluster] = []
     assigned = [-1] * len(refs)
     cluster_index = 0
@@ -76,6 +74,4 @@ def segment_endpoint_angle_at_node(
         return math.degrees(
             math.atan2(seg.end_y - seg.start_y, seg.end_x - seg.start_x)
         )
-    return math.degrees(
-        math.atan2(seg.start_y - seg.end_y, seg.start_x - seg.end_x)
-    )
+    return math.degrees(math.atan2(seg.start_y - seg.end_y, seg.start_x - seg.end_x))

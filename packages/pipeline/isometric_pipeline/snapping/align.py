@@ -72,7 +72,9 @@ def align_snapped_endpoints(
     if not centroid_by_root:
         return candidates
 
-    updated: dict[str, SnappedPrimitiveCandidate] = {c.primitive_id: c for c in candidates}
+    updated: dict[str, SnappedPrimitiveCandidate] = {
+        c.primitive_id: c for c in candidates
+    }
 
     for root, members in clusters.items():
         target = centroid_by_root.get(root)

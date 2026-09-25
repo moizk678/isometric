@@ -167,7 +167,9 @@ class CenterlinesAndPrimitivesTest(unittest.TestCase):
             layer for layer in extracted.metadata.layers if layer.layer_id == "geometry"
         )
         color_layer = next(
-            layer for layer in extracted.metadata.layers if layer.layer_id == "layer_red"
+            layer
+            for layer in extracted.metadata.layers
+            if layer.layer_id == "layer_red"
         )
         self.assertGreater(color_layer.edge_count, 0)
         self.assertEqual(geometry_layer.edge_count, 0)

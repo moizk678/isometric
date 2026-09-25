@@ -8,7 +8,7 @@ Stage `infer_topology` operates in **page pixel space** after Run 09 `snap_primi
 |---|---|---|---|
 | `infer_topology` | `infer_topology@1.0.0` | `documents/{id}/topology.json` | `jobs/{jobId}/stages/infer_topology/{hash}/overlay.png` |
 
-Worker order: `normalize_page` → `separate_masks` → `detect_regions` → `extract_centerlines` → `fit_primitives` → `snap_primitives` → **`infer_topology`** → `fixture_process` (fixture scene publication unchanged).
+Worker order: `normalize_page` → `separate_masks` → `detect_regions` → `extract_centerlines` → `fit_primitives` → `snap_primitives` → **`infer_topology`** → `transcribe_regions` → `classify_symbol_regions` → `fixture_process` (fixture scene publication unchanged).
 
 ## Inputs
 

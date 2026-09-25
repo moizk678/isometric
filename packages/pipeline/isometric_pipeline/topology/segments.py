@@ -5,10 +5,12 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 
-from isometric_pipeline.primitives.artifact import PrimitiveCandidate, PrimitivesMetadata
+from isometric_pipeline.primitives.artifact import (
+    PrimitiveCandidate,
+    PrimitivesMetadata,
+)
 from isometric_pipeline.profiles.loader import TopologyProfile
 from isometric_pipeline.snapping.artifact import (
-    SnappedPrimitiveCandidate,
     SnappedPrimitivesMetadata,
 )
 
@@ -31,7 +33,9 @@ class WorkingSegment:
         return math.hypot(self.end_x - self.start_x, self.end_y - self.start_y)
 
     def angle_deg(self) -> float:
-        return math.degrees(math.atan2(self.end_y - self.start_y, self.end_x - self.start_x))
+        return math.degrees(
+            math.atan2(self.end_y - self.start_y, self.end_x - self.start_x)
+        )
 
     def endpoints(self) -> tuple[tuple[float, float], tuple[float, float]]:
         return (self.start_x, self.start_y), (self.end_x, self.end_y)

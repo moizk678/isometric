@@ -63,9 +63,7 @@ def nearest_axis_angle(
 
 
 def _segment_length(prim: PrimitiveCandidate) -> float:
-    return float(
-        math.hypot(prim.end.x - prim.start.x, prim.end.y - prim.start.y)
-    )
+    return float(math.hypot(prim.end.x - prim.start.x, prim.end.y - prim.start.y))
 
 
 def _collect_votes(
@@ -78,9 +76,7 @@ def _collect_votes(
         length = _segment_length(prim)
         if length < min_length:
             continue
-        ang = undirected_angle_deg(
-            prim.end.x - prim.start.x, prim.end.y - prim.start.y
-        )
+        ang = undirected_angle_deg(prim.end.x - prim.start.x, prim.end.y - prim.start.y)
         votes.append((ang, length))
     return votes
 

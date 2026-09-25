@@ -6,6 +6,7 @@ from typing import Final
 
 RENDERER_VERSION: Final = "1.0.0"
 SYMBOL_LIBRARY_VERSION: Final = "piping-symbols@1.0.0"
+CLASSIFIER_SYMBOL_LIBRARY_VERSION: Final = "piping-symbols@1.1.0"
 STYLE_PROFILE_VERSION: Final = "piping-default@1.0.0"
 RASTERIZER: Final = "resvg-py@0.5.0"
 

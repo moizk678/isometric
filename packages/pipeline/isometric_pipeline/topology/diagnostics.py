@@ -10,7 +10,6 @@ from PIL import Image
 
 from isometric_pipeline.topology.artifact import (
     IntersectionHypothesis,
-    NodeCandidate,
     TopologyMetadata,
 )
 

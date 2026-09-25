@@ -6,9 +6,7 @@ import re
 
 from isometric_pipeline.ocr.artifact import ParsedDimensionHint
 
-_FEET_INCH = re.compile(
-    r"^\s*(\d+(?:\.\d+)?)\s*['′]\s*(\d+(?:\.\d+)?)?\s*[\"″]?\s*$"
-)
+_FEET_INCH = re.compile(r"^\s*(\d+(?:\.\d+)?)\s*['′]\s*(\d+(?:\.\d+)?)?\s*[\"″]?\s*$")
 _FEET_ONLY = re.compile(r"^\s*(\d+(?:\.\d+)?)\s*['′]\s*$")
 _INCH_ONLY = re.compile(r"^\s*(\d+(?:\.\d+)?)\s*[\"″]\s*$")
 _FEET_WORD = re.compile(r"^\s*(\d+(?:\.\d+)?)\s*ft\.?\s*$", re.IGNORECASE)

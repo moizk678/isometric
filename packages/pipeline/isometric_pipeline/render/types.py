@@ -99,11 +99,24 @@ class SymbolPrimitive:
 
 
 @dataclass(frozen=True)
+class SymbolAllowedAttachments:
+    """Topology constraints for port binding during symbol classification."""
+
+    node_kinds: frozenset[str]
+    min_incident_edges: int | None
+    max_incident_edges: int | None
+
+
+@dataclass(frozen=True)
 class SymbolDefinition:
     id: str
     label: str
     ports: tuple[SymbolPort, ...]
     primitives: tuple[SymbolPrimitive, ...]
+    aliases: tuple[str, ...] = ()
+    anchor_x: float = 0.0
+    anchor_y: float = 0.0
+    allowed_attachments: SymbolAllowedAttachments | None = None
 
     def port(self, name: str) -> SymbolPort | None:
         for port in self.ports:

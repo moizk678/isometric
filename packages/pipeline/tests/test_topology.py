@@ -20,6 +20,8 @@ from isometric_pipeline.profiles.loader import (
 )
 from isometric_pipeline.snapping.artifact import (
     PagePoint as SnapPoint,
+)
+from isometric_pipeline.snapping.artifact import (
     SegmentGeom,
     SnappedPrimitiveCandidate,
     SnappedPrimitivesMetadata,
@@ -27,8 +29,10 @@ from isometric_pipeline.snapping.artifact import (
 from isometric_pipeline.topology.artifact import (
     EdgeCandidate,
     NodeCandidate,
-    PagePoint as TopoPoint,
     TopologyMetadata,
+)
+from isometric_pipeline.topology.artifact import (
+    PagePoint as TopoPoint,
 )
 from isometric_pipeline.topology.stage import infer_topology
 from isometric_pipeline.topology.validate import validate_topology
@@ -193,7 +197,9 @@ class TopologyTest(unittest.TestCase):
         meta = _run_infer(prims)
         self.assertEqual(len(meta.nodes), 4)
         self.assertGreaterEqual(len(meta.hypotheses), 1)
-        node_positions = {(round(n.position.x), round(n.position.y)) for n in meta.nodes}
+        node_positions = {
+            (round(n.position.x), round(n.position.y)) for n in meta.nodes
+        }
         self.assertNotIn((128, 128), node_positions)
         for hyp in meta.hypotheses:
             crossing = next(a for a in hyp.alternatives if a.label == "crossing")
