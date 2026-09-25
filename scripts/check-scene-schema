@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+PYTHONPATH="packages/pipeline" .venv/bin/python -m isometric_pipeline.scene.generate --check
+pnpm --filter @isometric/scene-schema check

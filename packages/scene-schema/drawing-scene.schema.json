@@ -1,0 +1,690 @@
+{
+  "$defs": {
+    "Annotation": {
+      "additionalProperties": false,
+      "description": "Text on the drawing, keeping recognized and normalized forms.",
+      "properties": {
+        "alternatives": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "anchor": {
+          "$ref": "#/$defs/PagePoint"
+        },
+        "id": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        "interpretation": {
+          "$ref": "#/$defs/Interpretation"
+        },
+        "layerId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        "normalizedText": {
+          "type": "string"
+        },
+        "recognizedText": {
+          "type": "string"
+        },
+        "targetObjectId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        "type": {
+          "const": "annotation",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "layerId",
+        "interpretation",
+        "type",
+        "recognizedText",
+        "normalizedText",
+        "alternatives",
+        "anchor"
+      ],
+      "title": "Annotation",
+      "type": "object"
+    },
+    "Dimension": {
+      "additionalProperties": false,
+      "description": "A dimension; parsed value and unit are independent of pixel span.",
+      "properties": {
+        "displayText": {
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        "interpretation": {
+          "$ref": "#/$defs/Interpretation"
+        },
+        "layerId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        "parsedValue": {
+          "type": "number"
+        },
+        "targetObjectIds": {
+          "items": {
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "type": {
+          "const": "dimension",
+          "type": "string"
+        },
+        "unit": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "witnessEnd": {
+          "$ref": "#/$defs/PagePoint"
+        },
+        "witnessStart": {
+          "$ref": "#/$defs/PagePoint"
+        }
+      },
+      "required": [
+        "id",
+        "layerId",
+        "interpretation",
+        "type",
+        "displayText",
+        "witnessStart",
+        "witnessEnd",
+        "targetObjectIds"
+      ],
+      "title": "Dimension",
+      "type": "object"
+    },
+    "Evidence": {
+      "additionalProperties": false,
+      "description": "Source-image support for an interpretation.",
+      "properties": {
+        "artifactId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "observations": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "type": "object"
+        },
+        "sourcePolygon": {
+          "items": {
+            "$ref": "#/$defs/SourcePoint"
+          },
+          "minItems": 3,
+          "type": "array"
+        },
+        "stage": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "sourcePolygon",
+        "stage",
+        "artifactId",
+        "observations"
+      ],
+      "title": "Evidence",
+      "type": "object"
+    },
+    "Interpretation": {
+      "additionalProperties": false,
+      "description": "Review state, optional calibrated score, and supporting evidence.",
+      "properties": {
+        "evidence": {
+          "items": {
+            "$ref": "#/$defs/Evidence"
+          },
+          "type": "array"
+        },
+        "score": {
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        },
+        "state": {
+          "enum": [
+            "machine",
+            "confirmed",
+            "rejected",
+            "unknown"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "state",
+        "evidence"
+      ],
+      "title": "Interpretation",
+      "type": "object"
+    },
+    "Junction": {
+      "additionalProperties": false,
+      "description": "A pipe node: endpoint, elbow, tee, crossing, or unknown.",
+      "properties": {
+        "id": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        "interpretation": {
+          "$ref": "#/$defs/Interpretation"
+        },
+        "kind": {
+          "enum": [
+            "endpoint",
+            "elbow",
+            "tee",
+            "crossing",
+            "unknown"
+          ],
+          "type": "string"
+        },
+        "layerId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        "position": {
+          "$ref": "#/$defs/PagePoint"
+        },
+        "type": {
+          "const": "junction",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "layerId",
+        "interpretation",
+        "type",
+        "position",
+        "kind"
+      ],
+      "title": "Junction",
+      "type": "object"
+    },
+    "Layer": {
+      "additionalProperties": false,
+      "description": "A drawing layer with its source and render colors.",
+      "properties": {
+        "id": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "renderColor": {
+          "pattern": "^#[0-9a-f]{6}$",
+          "type": "string"
+        },
+        "sourceColor": {
+          "pattern": "^#[0-9a-f]{6}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "sourceColor",
+        "renderColor"
+      ],
+      "title": "Layer",
+      "type": "object"
+    },
+    "LinePrimitive": {
+      "additionalProperties": false,
+      "description": "A straight line in page coordinates.",
+      "properties": {
+        "end": {
+          "$ref": "#/$defs/PagePoint"
+        },
+        "kind": {
+          "const": "line",
+          "type": "string"
+        },
+        "start": {
+          "$ref": "#/$defs/PagePoint"
+        }
+      },
+      "required": [
+        "kind",
+        "start",
+        "end"
+      ],
+      "title": "LinePrimitive",
+      "type": "object"
+    },
+    "OriginalPrimitive": {
+      "additionalProperties": false,
+      "description": "The detected line before snapping to junctions.",
+      "properties": {
+        "end": {
+          "$ref": "#/$defs/PagePoint"
+        },
+        "start": {
+          "$ref": "#/$defs/PagePoint"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "title": "OriginalPrimitive",
+      "type": "object"
+    },
+    "Page": {
+      "additionalProperties": false,
+      "description": "Source, display, and page sizes with row-major 3x3 transforms.",
+      "properties": {
+        "displayHeightPx": {
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        "displayToSource": {
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 9,
+          "minItems": 9,
+          "type": "array"
+        },
+        "displayWidthPx": {
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        "heightPx": {
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        "pageToSource": {
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 9,
+          "minItems": 9,
+          "type": "array"
+        },
+        "sourceHeightPx": {
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        "sourceToDisplay": {
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 9,
+          "minItems": 9,
+          "type": "array"
+        },
+        "sourceToPage": {
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 9,
+          "minItems": 9,
+          "type": "array"
+        },
+        "sourceWidthPx": {
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        },
+        "widthPx": {
+          "exclusiveMinimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "sourceWidthPx",
+        "sourceHeightPx",
+        "displayWidthPx",
+        "displayHeightPx",
+        "widthPx",
+        "heightPx",
+        "sourceToDisplay",
+        "displayToSource",
+        "sourceToPage",
+        "pageToSource"
+      ],
+      "title": "Page",
+      "type": "object"
+    },
+    "PagePoint": {
+      "additionalProperties": false,
+      "description": "A point in rectified page pixels.",
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "title": "PagePoint",
+      "type": "object"
+    },
+    "PipeSegment": {
+      "additionalProperties": false,
+      "description": "A pipe run between two junctions.",
+      "properties": {
+        "endNodeId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        "interpretation": {
+          "$ref": "#/$defs/Interpretation"
+        },
+        "layerId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        "originalPrimitive": {
+          "$ref": "#/$defs/OriginalPrimitive"
+        },
+        "primitive": {
+          "$ref": "#/$defs/LinePrimitive"
+        },
+        "startNodeId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        "type": {
+          "const": "pipe_segment",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "layerId",
+        "interpretation",
+        "type",
+        "startNodeId",
+        "endNodeId",
+        "primitive"
+      ],
+      "title": "PipeSegment",
+      "type": "object"
+    },
+    "Relationship": {
+      "additionalProperties": false,
+      "description": "A non-connectivity link between two scene objects.",
+      "properties": {
+        "fromId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        "interpretation": {
+          "$ref": "#/$defs/Interpretation"
+        },
+        "toId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        "type": {
+          "enum": [
+            "annotates",
+            "measures",
+            "callout_targets"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "fromId",
+        "toId",
+        "interpretation"
+      ],
+      "title": "Relationship",
+      "type": "object"
+    },
+    "SourcePoint": {
+      "additionalProperties": false,
+      "description": "A point in immutable input pixels, before EXIF orientation.",
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y"
+      ],
+      "title": "SourcePoint",
+      "type": "object"
+    },
+    "SymbolObject": {
+      "additionalProperties": false,
+      "description": "A library symbol; each port maps to a junction ID or null if unresolved.",
+      "properties": {
+        "anchor": {
+          "$ref": "#/$defs/PagePoint"
+        },
+        "id": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        "interpretation": {
+          "$ref": "#/$defs/Interpretation"
+        },
+        "layerId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        "portNodeIds": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "propertyNames": {
+            "minLength": 1
+          },
+          "type": "object"
+        },
+        "rotationDegrees": {
+          "type": "number"
+        },
+        "symbolId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "type": {
+          "const": "symbol",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "layerId",
+        "interpretation",
+        "type",
+        "symbolId",
+        "anchor",
+        "rotationDegrees",
+        "portNodeIds"
+      ],
+      "title": "SymbolObject",
+      "type": "object"
+    },
+    "UnknownMark": {
+      "additionalProperties": false,
+      "description": "An unresolved mark kept for review.",
+      "properties": {
+        "candidateLabels": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "id": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        "interpretation": {
+          "$ref": "#/$defs/Interpretation"
+        },
+        "layerId": {
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+          "type": "string"
+        },
+        "sourceCropId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "type": {
+          "const": "unknown_mark",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "layerId",
+        "interpretation",
+        "type",
+        "sourceCropId",
+        "candidateLabels"
+      ],
+      "title": "UnknownMark",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "A versioned semantic scene for one drawing revision.",
+  "properties": {
+    "documentId": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "layers": {
+      "items": {
+        "$ref": "#/$defs/Layer"
+      },
+      "type": "array"
+    },
+    "objects": {
+      "items": {
+        "discriminator": {
+          "mapping": {
+            "annotation": "#/$defs/Annotation",
+            "dimension": "#/$defs/Dimension",
+            "junction": "#/$defs/Junction",
+            "pipe_segment": "#/$defs/PipeSegment",
+            "symbol": "#/$defs/SymbolObject",
+            "unknown_mark": "#/$defs/UnknownMark"
+          },
+          "propertyName": "type"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/PipeSegment"
+          },
+          {
+            "$ref": "#/$defs/Junction"
+          },
+          {
+            "$ref": "#/$defs/SymbolObject"
+          },
+          {
+            "$ref": "#/$defs/Annotation"
+          },
+          {
+            "$ref": "#/$defs/Dimension"
+          },
+          {
+            "$ref": "#/$defs/UnknownMark"
+          }
+        ]
+      },
+      "type": "array"
+    },
+    "page": {
+      "$ref": "#/$defs/Page"
+    },
+    "parentRevisionId": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "profileId": {
+      "const": "piping_isometric",
+      "type": "string"
+    },
+    "relationships": {
+      "items": {
+        "$ref": "#/$defs/Relationship"
+      },
+      "type": "array"
+    },
+    "revisionId": {
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "type": "string"
+    },
+    "schemaVersion": {
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "documentId",
+    "revisionId",
+    "profileId",
+    "page",
+    "layers",
+    "objects",
+    "relationships"
+  ],
+  "title": "DrawingScene",
+  "type": "object"
+}
