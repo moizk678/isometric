@@ -22,3 +22,13 @@ Rules:
 - Empty rows arrays are valid. Keep duplicate rows when the drawing repeats an item.
 - No extra fields, coordinates, or commentary outside the JSON object.
 """
+
+DRAWING_READING_VISION_USER = (
+    "Read this isometric drawing. Reply with ONLY the JSON object described in the system "
+    "instructions—no markdown, headings, steps, or prose."
+)
+
+DRAWING_READING_STRUCTURE_USER_PREFIX = (
+    "Convert the following unstructured piping isometric reading notes into the required JSON "
+    "object only. Every row must have non-empty location and reading strings.\n\n"
+)

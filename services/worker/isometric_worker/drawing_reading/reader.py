@@ -10,7 +10,7 @@ from typing import Any
 
 from .providers.fake import FakeDrawingReadingProviders
 from .providers.gemini import call_gemini
-from .providers.workers_ai import call_workers_ai
+from .providers.workers_ai import call_workers_ai, call_workers_ai_structure_notes
 from .schema import (
     DRAWING_READING_SCHEMA_VERSION,
     DrawingReadingTable,
@@ -96,6 +96,19 @@ def read_drawing_table(
             table=table, provider=workers.provider, model=workers.model
         )
 
+    structured = workers
+    if workers.text and workers.status in {"ok", "failed"}:
+        structured = call_workers_ai_structure_notes(
+            settings=cfg, notes=workers.text, job_id=job_id
+        )
+        table = _try_validate_provider_text(structured.text)
+        if table is not None:
+            return DrawingReadingSuccess(
+                table=table,
+                provider=f"{structured.provider}_structure",
+                model=structured.model,
+            )
+
     gemini = call_gemini(settings=cfg, image_bytes=image_bytes, job_id=job_id)
     table = _try_validate_provider_text(gemini.text)
     if table is not None:
@@ -108,6 +121,10 @@ def read_drawing_table(
             "workers_ai": {
                 "status": workers.status,
                 "http_status": workers.http_status,
+            },
+            "workers_ai_structure": {
+                "status": structured.status,
+                "http_status": structured.http_status,
             },
             "gemini": {
                 "status": gemini.status,

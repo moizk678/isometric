@@ -16,6 +16,9 @@ from .workers_ai import ProviderCallResult
 
 logger = logging.getLogger(__name__)
 
+_TRANSIENT_HTTP = frozenset({429, 500, 502, 503, 504})
+_MAX_ATTEMPTS = 3
+
 
 def _extract_gemini_text(payload: dict[str, Any]) -> str | None:
     candidates = payload.get("candidates")
@@ -38,11 +41,20 @@ def _extract_gemini_text(payload: dict[str, Any]) -> str | None:
     return text or None
 
 
-def call_gemini(
+def _should_retry(result: ProviderCallResult) -> bool:
+    if result.status == "error":
+        return True
+    if result.http_status in _TRANSIENT_HTTP:
+        return True
+    return False
+
+
+def _call_gemini_once(
     *,
     settings: DrawingReadingSettings,
     image_bytes: bytes,
     job_id: str,
+    attempt: int,
 ) -> ProviderCallResult:
     model = settings.gemini_model
     url = (
@@ -88,11 +100,12 @@ def call_gemini(
         latency_ms = int((time.perf_counter() - started) * 1000)
         detail = getattr(exc, "reason", None) or str(exc)
         logger.info(
-            "drawing_reading provider=gemini model=%s latency_ms=%s status=error job_id=%s detail=%s",
+            "drawing_reading provider=gemini model=%s latency_ms=%s status=error job_id=%s detail=%s attempt=%s",
             model,
             latency_ms,
             job_id,
             detail,
+            attempt,
         )
         return ProviderCallResult(
             provider="gemini",
@@ -107,10 +120,11 @@ def call_gemini(
         payload = json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError):
         logger.info(
-            "drawing_reading provider=gemini model=%s latency_ms=%s status=failed job_id=%s",
+            "drawing_reading provider=gemini model=%s latency_ms=%s status=failed job_id=%s attempt=%s",
             model,
             latency_ms,
             job_id,
+            attempt,
         )
         return ProviderCallResult(
             provider="gemini",
@@ -132,11 +146,12 @@ def call_gemini(
     text = _extract_gemini_text(payload)
     if http_status >= 400 or text is None:
         logger.info(
-            "drawing_reading provider=gemini model=%s latency_ms=%s status=failed job_id=%s http_status=%s",
+            "drawing_reading provider=gemini model=%s latency_ms=%s status=failed job_id=%s http_status=%s attempt=%s",
             model,
             latency_ms,
             job_id,
             http_status,
+            attempt,
         )
         return ProviderCallResult(
             provider="gemini",
@@ -147,10 +162,11 @@ def call_gemini(
             http_status=http_status,
         )
     logger.info(
-        "drawing_reading provider=gemini model=%s latency_ms=%s status=ok job_id=%s",
+        "drawing_reading provider=gemini model=%s latency_ms=%s status=ok job_id=%s attempt=%s",
         model,
         latency_ms,
         job_id,
+        attempt,
     )
     return ProviderCallResult(
         provider="gemini",
@@ -160,3 +176,28 @@ def call_gemini(
         text=text,
         http_status=http_status,
     )
+
+
+def call_gemini(
+    *,
+    settings: DrawingReadingSettings,
+    image_bytes: bytes,
+    job_id: str,
+) -> ProviderCallResult:
+    last: ProviderCallResult | None = None
+    for attempt in range(1, _MAX_ATTEMPTS + 1):
+        result = _call_gemini_once(
+            settings=settings,
+            image_bytes=image_bytes,
+            job_id=job_id,
+            attempt=attempt,
+        )
+        last = result
+        if result.status == "ok":
+            return result
+        if _should_retry(result) and attempt < _MAX_ATTEMPTS:
+            time.sleep(2 ** (attempt - 1))
+            continue
+        return result
+    assert last is not None
+    return last
