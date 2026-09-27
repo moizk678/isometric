@@ -475,6 +475,45 @@ def get_document_drawing_reading(
     )
 
 
+@router.post(
+    "/documents/{document_id}/drawing-reading/retry",
+    response_model=ReprocessResponse,
+    status_code=202,
+    responses=_OWNED,
+)
+def retry_document_drawing_reading(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    document_id: uuid.UUID,
+) -> dict[str, Any]:
+    owner_id = get_owner_id(request)
+    state = get_state(request)
+    docs = DocumentRepository()
+    jobs = JobRepository()
+    with state.pool.connection() as conn:
+        doc = docs.get(conn, document_id)
+        if doc is None:
+            raise ApiError(404, "not_found", "document not found")
+        _ensure_owner(doc.owner_id, owner_id)
+        profile_id = doc.profile_id or state.settings.profile_id
+        reading_job_id = _enqueue_drawing_reading_job(
+            jobs,
+            conn,
+            document_id=document_id,
+            input_hash=doc.source_hash,
+            options_hash="drawing_reading_retry",
+            pipeline_version=state.settings.pipeline_version,
+            profile_version=profile_id,
+        )
+        conn.commit()
+    _schedule_worker(request, background_tasks)
+    return {
+        "document_id": str(document_id),
+        "job_id": str(reading_job_id),
+        "status": "queued",
+    }
+
+
 @router.get("/documents/{document_id}/source", responses=_OWNED)
 def get_document_source(request: Request, document_id: uuid.UUID) -> Response:
     owner_id = get_owner_id(request)

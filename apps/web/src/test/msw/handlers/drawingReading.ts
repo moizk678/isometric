@@ -41,6 +41,18 @@ export function setDrawingReading(documentId: string, response: DrawingReadingRe
 resetDrawingReadingFixtures();
 
 export const drawingReadingHandlers = [
+  http.post('/api/v1/documents/:documentId/drawing-reading/retry', ({ params }) => {
+    const documentId = String(params.documentId);
+    const response = drawingReadingByDocument.get(documentId);
+    if (!response) {
+      return new HttpResponse(null, { status: 404 });
+    }
+    drawingReadingByDocument.set(documentId, { status: 'pending', job_id: 'reading-retry-job' });
+    return HttpResponse.json(
+      { document_id: documentId, job_id: 'reading-retry-job', status: 'queued' },
+      { status: 202 },
+    );
+  }),
   http.get('/api/v1/documents/:documentId/drawing-reading', ({ params }) => {
     const documentId = String(params.documentId);
     const response = drawingReadingByDocument.get(documentId);

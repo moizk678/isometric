@@ -46,5 +46,5 @@ def load_settings() -> ApiSettings:
             "VISION_MODEL", "@cf/meta/llama-3.2-11b-vision-instruct"
         ).strip(),
         gemini_api_key=os.environ.get("GEMINI_API_KEY", "").strip(),
-        gemini_model=os.environ.get("GEMINI_MODEL", "gemini-2.0-flash").strip(),
+        gemini_model=os.environ.get("GEMINI_MODEL", "gemini-3.8-flash").strip(),
     )

@@ -84,14 +84,15 @@ def call_gemini(
     except urllib.error.HTTPError as exc:
         http_status = exc.code
         raw = exc.read()
-    except urllib.error.URLError as exc:
+    except (urllib.error.URLError, TimeoutError) as exc:
         latency_ms = int((time.perf_counter() - started) * 1000)
+        detail = getattr(exc, "reason", None) or str(exc)
         logger.info(
             "drawing_reading provider=gemini model=%s latency_ms=%s status=error job_id=%s detail=%s",
             model,
             latency_ms,
             job_id,
-            exc.reason,
+            detail,
         )
         return ProviderCallResult(
             provider="gemini",

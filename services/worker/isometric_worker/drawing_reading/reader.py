@@ -30,6 +30,7 @@ class DrawingReadingSuccess:
 @dataclass(frozen=True)
 class DrawingReadingFailure:
     error_code: str
+    detail: dict[str, object] | None = None
 
 
 def _parse_json_text(text: str) -> object:
@@ -101,7 +102,19 @@ def read_drawing_table(
         return DrawingReadingSuccess(
             table=table, provider=gemini.provider, model=gemini.model
         )
-    return DrawingReadingFailure(error_code="reading_failed")
+    return DrawingReadingFailure(
+        error_code="reading_failed",
+        detail={
+            "workers_ai": {
+                "status": workers.status,
+                "http_status": workers.http_status,
+            },
+            "gemini": {
+                "status": gemini.status,
+                "http_status": gemini.http_status,
+            },
+        },
+    )
 
 
 def build_artifact_payload(

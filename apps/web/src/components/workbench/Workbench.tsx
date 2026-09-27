@@ -156,7 +156,7 @@ function WorkbenchReady({
       loading={drawingReading.loading}
       error={drawingReading.error}
       onRetry={() => {
-        void drawingReading.refresh();
+        void drawingReading.retry();
       }}
       className={narrow ? frameClass : undefined}
     />

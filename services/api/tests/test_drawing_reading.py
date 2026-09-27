@@ -183,6 +183,17 @@ class DrawingReadingIntegrationTest(unittest.TestCase):
             ).fetchone()
         self.assertEqual(count["c"], 2)
 
+    def test_retry_enqueues_new_reading_job(self) -> None:
+        document_id, _ = self._upload()
+        first_id = self._reading_job_id(document_id)
+        response = self.client.post(
+            f"/api/v1/documents/{document_id}/drawing-reading/retry",
+            headers=self._headers(),
+        )
+        self.assertEqual(response.status_code, 202)
+        second_id = self._reading_job_id(document_id)
+        self.assertNotEqual(first_id, second_id)
+
     def test_reprocess_enqueues_reading_job(self) -> None:
         document_id, _ = self._upload(run_pipeline=False)
         response = self.client.post(

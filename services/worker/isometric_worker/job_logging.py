@@ -86,8 +86,14 @@ def log_job_error(
     message: str,
     error_code: str | None = None,
     stage: str | None = None,
+    detail: dict[str, Any] | None = None,
 ) -> None:
-    detail = {"error_code": error_code} if error_code else None
+    payload: dict[str, Any] = {}
+    if error_code:
+        payload["error_code"] = error_code
+    if detail:
+        payload.update(detail)
+    detail = payload or None
     commit_job_log(
         pool,
         jobs,

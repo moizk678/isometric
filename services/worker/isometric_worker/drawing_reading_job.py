@@ -113,6 +113,7 @@ def process_drawing_reading_job(
             message="Drawing reading failed",
             error_code=result.error_code,
             stage="drawing_reading",
+            detail=result.detail,
         )
         with pool.connection() as conn:
             jobs.mark_failed(conn, job_id, result.error_code)

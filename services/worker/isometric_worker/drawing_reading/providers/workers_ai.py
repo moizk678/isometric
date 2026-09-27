@@ -62,8 +62,9 @@ def _post_json(
     except urllib.error.HTTPError as exc:
         status = exc.code
         raw = exc.read()
-    except urllib.error.URLError as exc:
-        return 0, None, str(exc.reason)
+    except (urllib.error.URLError, TimeoutError) as exc:
+        detail = getattr(exc, "reason", None) or str(exc)
+        return 0, None, str(detail)
     try:
         parsed = json.loads(raw.decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError):

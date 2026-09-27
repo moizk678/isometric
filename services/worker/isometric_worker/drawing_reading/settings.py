@@ -33,9 +33,9 @@ def load_drawing_reading_settings() -> DrawingReadingSettings:
             "VISION_MODEL", "@cf/meta/llama-3.2-11b-vision-instruct"
         ).strip(),
         gemini_api_key=os.environ.get("GEMINI_API_KEY", "").strip(),
-        gemini_model=os.environ.get("GEMINI_MODEL", "gemini-2.0-flash").strip(),
+        gemini_model=os.environ.get("GEMINI_MODEL", "gemini-3.8-flash").strip(),
         request_timeout_seconds=float(
-            os.environ.get("DRAWING_READING_TIMEOUT_SECONDS", "30")
+            os.environ.get("DRAWING_READING_TIMEOUT_SECONDS", "120")
         ),
         fake_mode=fake_mode,
     )

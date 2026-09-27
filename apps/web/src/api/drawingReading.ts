@@ -18,6 +18,10 @@ export function fetchDrawingReading(documentId: string): Promise<DrawingReadingR
   return apiFetch<DrawingReadingResponse>(drawingReadingPath(documentId));
 }
 
+export function retryDrawingReading(documentId: string): Promise<{ document_id: string; job_id: string; status: string }> {
+  return apiFetch(`${drawingReadingPath(documentId)}/retry`, { method: 'POST' });
+}
+
 export function isDrawingReadingPending(reading: DrawingReadingResponse | null): boolean {
   return reading?.status === 'pending';
 }
@@ -27,6 +31,7 @@ export type DrawingReadingState = {
   loading: boolean;
   error: ApiError | null;
   refresh: () => Promise<void>;
+  retry: () => Promise<void>;
 };
 
 function isTransientError(error: ApiError): boolean {
@@ -61,6 +66,21 @@ export function useDrawingReading(documentId: string): DrawingReadingState {
     setLoading(true);
     await fetchReading();
   }, [fetchReading]);
+
+  const retry = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await retryDrawingReading(documentId);
+    } catch (err) {
+      const apiError =
+        err instanceof ApiError ? err : new ApiError(0, 'unknown_error', 'Could not retry drawing reading', null);
+      setError(apiError);
+      setLoading(false);
+      return;
+    }
+    await fetchReading();
+  }, [documentId, fetchReading]);
 
   useEffect(() => {
     let cancelled = false;
@@ -105,5 +125,5 @@ export function useDrawingReading(documentId: string): DrawingReadingState {
     };
   }, [fetchReading]);
 
-  return { reading, loading, error, refresh };
+  return { reading, loading, error, refresh, retry };
 }
