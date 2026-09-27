@@ -5,14 +5,19 @@ cd "$(dirname "$0")/.."
 export PYTHONPATH="services/api:services/worker:packages/pipeline:packages/persistence"
 
 # Persistent disk mounts at /data; without a disk, /data is not writable on Render.
+_default_artifacts="/opt/render/project/src/.private/artifacts"
 if [[ -z "${ARTIFACT_ROOT:-}" ]]; then
-  if [[ -d /data ]] || mkdir -p /data/artifacts 2>/dev/null; then
+  if [[ -d /data ]] && mkdir -p /data/artifacts 2>/dev/null; then
     export ARTIFACT_ROOT="/data/artifacts"
   else
-    export ARTIFACT_ROOT="/opt/render/project/src/.private/artifacts"
+    export ARTIFACT_ROOT="$_default_artifacts"
   fi
 fi
-mkdir -p "$ARTIFACT_ROOT"
+if ! mkdir -p "$ARTIFACT_ROOT" 2>/dev/null; then
+  echo "render-start: cannot write ARTIFACT_ROOT=$ARTIFACT_ROOT; using $_default_artifacts" >&2
+  export ARTIFACT_ROOT="$_default_artifacts"
+  mkdir -p "$ARTIFACT_ROOT"
+fi
 
 worker_loop() {
   while true; do
