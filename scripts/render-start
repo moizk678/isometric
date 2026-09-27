@@ -3,7 +3,15 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 export PYTHONPATH="services/api:services/worker:packages/pipeline:packages/persistence"
-export ARTIFACT_ROOT="${ARTIFACT_ROOT:-/data/artifacts}"
+
+# Persistent disk mounts at /data; without a disk, /data is not writable on Render.
+if [[ -z "${ARTIFACT_ROOT:-}" ]]; then
+  if [[ -d /data ]] || mkdir -p /data/artifacts 2>/dev/null; then
+    export ARTIFACT_ROOT="/data/artifacts"
+  else
+    export ARTIFACT_ROOT="/opt/render/project/src/.private/artifacts"
+  fi
+fi
 mkdir -p "$ARTIFACT_ROOT"
 
 worker_loop() {
