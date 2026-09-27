@@ -7,6 +7,13 @@ afterEach(() => {
 });
 
 describe('ProcessingTimeline', () => {
+  it('highlights the read phase for drawing_reading', () => {
+    render(<ProcessingTimeline stage="drawing_reading" attempt={1} />);
+
+    expect(screen.getByTestId('processing-phase-read').getAttribute('data-phase-state')).toBe('active');
+    expect(screen.getByTestId('processing-phase-prepare').getAttribute('data-phase-state')).toBe('complete');
+  });
+
   it('highlights the trace phase for extract_centerlines', () => {
     render(<ProcessingTimeline stage="extract_centerlines" attempt={1} />);
 

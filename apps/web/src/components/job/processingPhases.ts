@@ -13,7 +13,7 @@ export const PROCESSING_PHASES: readonly ProcessingPhase[] = [
   {
     id: 'read',
     label: 'Read the drawing',
-    stages: ['detect_regions', 'transcribe_regions'],
+    stages: ['drawing_reading', 'detect_regions', 'transcribe_regions'],
   },
   {
     id: 'trace',

@@ -121,6 +121,7 @@ def _enqueue_drawing_reading_job(
     options_hash: str,
     pipeline_version: str,
     profile_version: str,
+    dispatch_to_worker: bool = False,
 ) -> uuid.UUID:
     reading_job_id = uuid.uuid4()
     jobs.create_with_outbox(
@@ -134,6 +135,7 @@ def _enqueue_drawing_reading_job(
         profile_version=profile_version,
         event_key=f"job.created.{reading_job_id}",
         kind=JOB_KIND_DRAWING_READING,
+        dispatch_to_worker=dispatch_to_worker,
     )
     return reading_job_id
 
@@ -504,6 +506,7 @@ def retry_document_drawing_reading(
             options_hash="drawing_reading_retry",
             pipeline_version=state.settings.pipeline_version,
             profile_version=profile_id,
+            dispatch_to_worker=True,
         )
         conn.commit()
     _schedule_worker(request, background_tasks)

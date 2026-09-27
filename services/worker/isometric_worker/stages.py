@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 STAGE_NORMALIZE_PAGE = "normalize_page"
+STAGE_DRAWING_READING = "drawing_reading"
 STAGE_SEPARATE_MASKS = "separate_masks"
 STAGE_DETECT_REGIONS = "detect_regions"
 STAGE_TRACE_INK = "trace_ink"
@@ -17,6 +18,7 @@ STAGE_ASSEMBLE_SCENE = "assemble_scene"
 STAGE_FIXTURE_PROCESS = "fixture_process"
 
 NORMALIZE_PAGE_VERSION = "normalize_page@1.0.0"
+DRAWING_READING_STAGE_VERSION = "drawing_reading@1"
 SEPARATE_MASKS_VERSION = "separate_masks@1.0.0"
 DETECT_REGIONS_VERSION = "detect_regions@1.0.0"
 TRACE_INK_VERSION = "trace_ink@1.0.0"
@@ -33,6 +35,7 @@ FIXTURE_PROCESS_VERSION = "fixture@1.0.0"
 
 STAGE_ORDER = (
     STAGE_NORMALIZE_PAGE,
+    STAGE_DRAWING_READING,
     STAGE_SEPARATE_MASKS,
     STAGE_DETECT_REGIONS,
     STAGE_TRACE_INK,

@@ -1,5 +1,6 @@
 const STAGE_LABELS: Record<string, string> = {
   normalize_page: 'Normalize page',
+  drawing_reading: 'Read drawing table',
   separate_masks: 'Separate masks',
   detect_regions: 'Detect regions',
   extract_centerlines: 'Extract centerlines',

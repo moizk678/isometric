@@ -60,6 +60,7 @@ class JobRepository:
         event_key: str,
         event_type: str = "job.created",
         kind: JobKind = JOB_KIND_PIPELINE,
+        dispatch_to_worker: bool = True,
     ) -> JobRow:
         conn.execute(
             """
@@ -80,18 +81,21 @@ class JobRepository:
                 profile_version,
             ),
         )
-        conn.execute(
-            """
-            INSERT INTO drawing.outbox_events (event_type, aggregate_id, payload, event_key)
-            VALUES (%s, %s, %s::jsonb, %s)
-            """,
-            (
-                event_type,
-                job_id,
-                json.dumps({"job_id": str(job_id), "document_id": str(document_id)}),
-                event_key,
-            ),
-        )
+        if dispatch_to_worker:
+            conn.execute(
+                """
+                INSERT INTO drawing.outbox_events (event_type, aggregate_id, payload, event_key)
+                VALUES (%s, %s, %s::jsonb, %s)
+                """,
+                (
+                    event_type,
+                    job_id,
+                    json.dumps(
+                        {"job_id": str(job_id), "document_id": str(document_id)}
+                    ),
+                    event_key,
+                ),
+            )
         return self.get(conn, job_id)  # type: ignore[return-value]
 
     def get(self, conn: Connection[Any], job_id: uuid.UUID) -> JobRow | None:

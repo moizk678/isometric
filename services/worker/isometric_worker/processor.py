@@ -24,6 +24,7 @@ from isometric_persistence.keys import (
     document_normalize_metadata_key,
     document_page_key,
     document_primitives_metadata_key,
+    document_reading_key,
     document_regions_metadata_key,
     document_snapped_primitives_metadata_key,
     document_symbol_candidates_metadata_key,
@@ -60,7 +61,6 @@ from isometric_pipeline.ocr.artifact import TextCandidatesMetadata
 from isometric_pipeline.ocr.stage import transcribe_regions
 from isometric_pipeline.primitives.artifact import PrimitivesMetadata
 from isometric_pipeline.primitives.stage import fit_primitives
-from isometric_pipeline.profiles.loader import load_piping_profile
 from isometric_pipeline.regions.artifact import RegionsMetadata
 from isometric_pipeline.regions.stage import detect_regions
 from isometric_pipeline.render import (
@@ -90,28 +90,27 @@ from psycopg import Connection, OperationalError
 from psycopg.errors import UniqueViolation
 
 from .assembly_context import load_assembly_context
-from .job_logging import (
-    commit_job_log,
-    log_job_error,
-    log_stage_finished,
-    log_stage_started,
-)
+from .drawing_reading_job import process_drawing_reading_job
 from .fixture_fit import (
     FixtureReviewItem,
     fit_fixture_scene,
     fixture_review_items,
     read_source_frame,
 )
-from .drawing_reading_job import process_drawing_reading_job
+from .job_logging import (
+    commit_job_log,
+    log_job_error,
+    log_stage_finished,
+    log_stage_started,
+)
 from .publish_policy import resolve_publish_policy
 from .queue import JobQueue
-from .trace_svg import read_or_build_document_trace, run_document_trace
 from .stages import (
     ASSEMBLE_SCENE_VERSION,
     ASSOCIATE_MARKUP_VERSION,
     CLASSIFY_SYMBOL_REGIONS_VERSION,
     DETECT_REGIONS_VERSION,
-    TRACE_INK_VERSION,
+    DRAWING_READING_STAGE_VERSION,
     EXTRACT_CENTERLINES_VERSION,
     FIT_PRIMITIVES_VERSION,
     INFER_TOPOLOGY_VERSION,
@@ -122,7 +121,7 @@ from .stages import (
     STAGE_ASSOCIATE_MARKUP,
     STAGE_CLASSIFY_SYMBOL_REGIONS,
     STAGE_DETECT_REGIONS,
-    STAGE_TRACE_INK,
+    STAGE_DRAWING_READING,
     STAGE_EXTRACT_CENTERLINES,
     STAGE_FIT_PRIMITIVES,
     STAGE_FIXTURE_PROCESS,
@@ -130,9 +129,12 @@ from .stages import (
     STAGE_NORMALIZE_PAGE,
     STAGE_SEPARATE_MASKS,
     STAGE_SNAP_PRIMITIVES,
+    STAGE_TRACE_INK,
     STAGE_TRANSCRIBE_REGIONS,
+    TRACE_INK_VERSION,
     TRANSCRIBE_REGIONS_VERSION,
 )
+from .trace_svg import read_or_build_document_trace, run_document_trace
 
 FIXTURE_SCENE = (
     Path(__file__).resolve().parents[3]
@@ -377,6 +379,77 @@ def _execute_normalize_page(
         stage=STAGE_NORMALIZE_PAGE,
         metrics=metrics,
         warnings=normalized.warnings,
+    )
+    return True
+
+
+def _execute_drawing_reading(
+    pool: DatabasePool,
+    store: ArtifactStore,
+    jobs: JobRepository,
+    *,
+    job_id: uuid.UUID,
+    document_id: uuid.UUID,
+    input_hash: str,
+    queue: JobQueue | None,
+) -> bool:
+    """Run the drawing_reading job for this document after page.png exists."""
+    log_stage_started(pool, jobs, job_id=job_id, stage=STAGE_DRAWING_READING)
+    with pool.connection() as conn:
+        job = jobs.get(conn, job_id)
+        if job is None or job.cancel_requested or job.result_revision_id is not None:
+            if job and job.cancel_requested:
+                jobs.mark_canceled(conn, job_id)
+                conn.commit()
+            return False
+        reading_job = jobs.get_newest_reading_job(conn, document_id)
+
+    warnings: list[str] = []
+    stage_status = "succeeded"
+    artifact_uri: str | None = None
+
+    if reading_job is None:
+        warnings.append("drawing_reading_job_missing")
+    elif reading_job.state in {"succeeded", "failed"}:
+        if reading_job.state == "failed":
+            warnings.append(reading_job.error_code or "reading_failed")
+        if reading_job.state == "succeeded":
+            artifact_uri = document_reading_key(document_id, reading_job.id)
+    else:
+        process_drawing_reading_job(pool, store, reading_job, queue=queue)
+        with pool.connection() as conn:
+            refreshed = jobs.get(conn, reading_job.id)
+        if refreshed is None:
+            warnings.append("drawing_reading_job_missing")
+        elif refreshed.state == "succeeded":
+            artifact_uri = document_reading_key(document_id, refreshed.id)
+        else:
+            warnings.append(refreshed.error_code or "reading_failed")
+
+    with pool.connection() as conn:
+        job = jobs.get(conn, job_id)
+        if job is None or job.cancel_requested or job.result_revision_id is not None:
+            if job and job.cancel_requested:
+                jobs.mark_canceled(conn, job_id)
+                conn.commit()
+            return False
+        jobs.insert_stage_run(
+            conn,
+            job_id=job_id,
+            stage=STAGE_DRAWING_READING,
+            status=stage_status,
+            input_hash=input_hash,
+            producer_version=DRAWING_READING_STAGE_VERSION,
+            artifact_uri=artifact_uri,
+            warnings=warnings or None,
+        )
+        conn.commit()
+    log_stage_finished(
+        pool,
+        jobs,
+        job_id=job_id,
+        stage=STAGE_DRAWING_READING,
+        warnings=warnings or None,
     )
     return True
 
@@ -1814,6 +1887,15 @@ def process_job(
         conn.commit()
 
     if claimed.kind == JOB_KIND_DRAWING_READING:
+        with pool.connection() as conn:
+            pipeline_active = jobs.has_active_pipeline_job(conn, claimed.document_id)
+        if pipeline_active:
+            with pool.connection() as conn:
+                jobs.requeue_preserving_attempt(conn, job_id)
+                conn.commit()
+            if queue is not None:
+                queue.enqueue(str(job_id))
+            return
         commit_job_log(
             pool,
             jobs,
@@ -1875,6 +1957,17 @@ def process_job(
         job_id=job_id,
         document_id=document_id,
         source_bytes=source_bytes,
+        input_hash=claimed.input_hash,
+        queue=queue,
+    ):
+        return
+
+    if not _execute_drawing_reading(
+        pool,
+        store,
+        jobs,
+        job_id=job_id,
+        document_id=document_id,
         input_hash=claimed.input_hash,
         queue=queue,
     ):
