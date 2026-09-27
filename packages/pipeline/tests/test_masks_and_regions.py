@@ -7,6 +7,7 @@ import unittest
 import uuid
 from pathlib import Path
 
+import cv2
 import numpy as np
 from isometric_pipeline.masks.artifact import WARNING_GRID_LOW_CONFIDENCE
 from isometric_pipeline.masks.stage import separate_masks
@@ -36,6 +37,19 @@ def _decode_mask(png: bytes) -> np.ndarray:
         return np.array(image.convert("L"))
 
 
+def _pale_isometric_on_dotted_grid() -> tuple[bytes, np.ndarray]:
+    height, width = 240, 320
+    rgb = np.full((height, width, 3), 252, dtype=np.uint8)
+    for x in range(16, width - 16, 16):
+        rgb[8 : height - 8, x] = (218, 218, 218)
+    before = rgb.copy()
+    cv2.line(rgb, (36, 190), (250, 66), (236, 228, 140), 7)
+    stroke = np.any(rgb != before, axis=2)
+    buf = io.BytesIO()
+    Image.fromarray(rgb, mode="RGB").save(buf, format="PNG")
+    return buf.getvalue(), stroke
+
+
 def _run_separate(name: str):
     data = (FIXTURES / name).read_bytes()
     doc = str(uuid.UUID(DOC_ID))
@@ -60,6 +74,22 @@ class MasksAndRegionsTest(unittest.TestCase):
         for key in result.masks:
             mask = _decode_mask(result.masks[key])
             self.assertEqual(mask.shape, (h, w))
+
+    def test_pale_colored_isometric_stroke_stays_out_of_grid(self) -> None:
+        page, stroke = _pale_isometric_on_dotted_grid()
+        doc = str(uuid.UUID(DOC_ID))
+        result = separate_masks(
+            page,
+            document_id=doc,
+            page_uri=f"documents/{doc}/page.png",
+            masks_json_uri=f"documents/{doc}/masks.json",
+        )
+        grid = _decode_mask(result.masks["grid"]) > 0
+        retained = _decode_mask(result.masks["retained_ink"]) > 0
+        stroke_count = int(stroke.sum())
+        self.assertGreater(stroke_count, 100)
+        self.assertEqual(int((stroke & grid).sum()), 0)
+        self.assertGreater(int((stroke & retained).sum()), int(stroke_count * 0.8))
 
     def test_faint_grid_suppresses_grid_not_routes(self) -> None:
         result = _run_separate("faint-grid.png")

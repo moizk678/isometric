@@ -34,9 +34,9 @@ test('upload a PNG, wait for the fixture job, select objects, and download the S
   await expect(page.getByTestId('upload-attachment-row')).toContainText(filename);
   await page.getByTestId('upload-start-button').click();
 
-  await page.waitForURL(/\/jobs\/[0-9a-f-]{36}$/);
-  await expect(page.getByText('Succeeded', { exact: true })).toBeVisible({ timeout: 60_000 });
-  await page.getByRole('link', { name: 'Open document' }).click();
+  await expect(page.getByTestId('job-log-panel')).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByTestId('upload-open-document')).toBeVisible({ timeout: 60_000 });
+  await page.getByTestId('upload-open-document').click();
 
   await page.waitForURL(/\/documents\/[0-9a-f-]{36}/);
   const documentId = new URL(page.url()).pathname.split('/').pop()!;
@@ -90,7 +90,7 @@ test('upload a PNG, wait for the fixture job, select objects, and download the S
   });
 
   await test.step('download the SVG export', async () => {
-    const link = page.getByRole('link', { name: 'Download SVG' });
+    const link = page.getByRole('link', { name: /Download .*SVG/ });
     const href = await link.getAttribute('href');
     expect(href).toMatch(new RegExp(`^/api/v1/documents/${documentId}/revisions/${detail.current_revision_id}/exports/svg$`));
     await expect(link).toHaveAttribute('download', filename.replace(/\.png$/, '.svg'));
@@ -131,7 +131,7 @@ test('touch selects an object on a phone and opens its evidence in the review dr
     canvasSwitch.getByRole('tab', { name: 'Original' }),
     canvasSwitch.getByRole('tab', { name: 'SVG' }),
     reviewButton,
-    page.getByRole('link', { name: 'Download SVG' }),
+    page.getByRole('link', { name: /Download .*SVG/ }),
   ]) {
     const box = await target.boundingBox();
     expect(box!.height).toBeGreaterThanOrEqual(44);

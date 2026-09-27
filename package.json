@@ -7,6 +7,8 @@
     "node": "26.0.0"
   },
   "scripts": {
+    "dev:api": "./scripts/run-api",
+    "dev:web": "./scripts/run-web",
     "test:web": "pnpm --filter @isometric/web test",
     "gen:api": "pnpm --filter @isometric/web gen:api"
   }

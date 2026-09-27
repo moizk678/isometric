@@ -39,6 +39,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/documents/{document_id}/reprocess": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Reprocess Document */
+        post: operations["reprocess_document_api_v1_documents__document_id__reprocess_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/documents/{document_id}/source": {
         parameters: {
             query?: never;
@@ -65,6 +82,23 @@ export interface paths {
         };
         /** Get Document Display */
         get: operations["get_document_display_api_v1_documents__document_id__display_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/documents/{document_id}/trace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Document Trace */
+        get: operations["get_document_trace_api_v1_documents__document_id__trace_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -118,6 +152,57 @@ export interface paths {
         get: operations["get_review_items_api_v1_documents__document_id__revisions__revision_id__review_items_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/documents/{document_id}/revisions/{revision_id}/edits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Revision Edits */
+        post: operations["post_revision_edits_api_v1_documents__document_id__revisions__revision_id__edits_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/documents/{document_id}/revisions/{revision_id}/review-items/{item_id}/resolve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Resolve Review Item */
+        post: operations["post_resolve_review_item_api_v1_documents__document_id__revisions__revision_id__review_items__item_id__resolve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/documents/{document_id}/revisions/{revision_id}/adopt": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Adopt Candidate */
+        post: operations["post_adopt_candidate_api_v1_documents__document_id__revisions__revision_id__adopt_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -179,6 +264,22 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AdoptCandidateRequest */
+        AdoptCandidateRequest: {
+            /** Candidate Revision Id */
+            candidate_revision_id: string;
+        };
+        /** AdoptCandidateResponse */
+        AdoptCandidateResponse: {
+            /** Document Id */
+            document_id: string;
+            /** Current Revision Id */
+            current_revision_id: string;
+            /** Review State */
+            review_state: string;
+            /** Lost Confirmed Edits */
+            lost_confirmed_edits: components["schemas"]["LostConfirmedEdit"][];
+        };
         /** Body_create_document_api_v1_documents_post */
         Body_create_document_api_v1_documents_post: {
             /**
@@ -205,6 +306,31 @@ export interface components {
             job_id: string | null;
             /** Status */
             status: string;
+        };
+        /** DrawingReadingRow */
+        DrawingReadingRow: {
+            /** Location */
+            location: string;
+            /** Reading */
+            reading: string;
+        };
+        /** DrawingReadingGroup */
+        DrawingReadingGroup: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /** Rows */
+            rows: components["schemas"]["DrawingReadingRow"][];
+        };
+        /** DrawingReadingResponse */
+        DrawingReadingResponse: {
+            /** Status */
+            status: "pending" | "ready" | "disabled" | "unavailable" | "absent";
+            /** Groups */
+            groups?: components["schemas"]["DrawingReadingGroup"][];
+            /** Error Code */
+            error_code?: string | null;
         };
         /** DocumentDetailResponse */
         DocumentDetailResponse: {
@@ -271,6 +397,23 @@ export interface components {
             /** Cancel Requested */
             cancel_requested: boolean;
         };
+        /** JobLogEntry */
+        JobLogEntry: {
+            /** Id */
+            id: string;
+            /** Created At */
+            created_at: string;
+            /** Level */
+            level: string;
+            /** Stage */
+            stage: string | null;
+            /** Message */
+            message: string;
+            /** Detail */
+            detail: {
+                [key: string]: unknown;
+            };
+        };
         /** JobProgress */
         JobProgress: {
             /** Stage */
@@ -293,6 +436,8 @@ export interface components {
             progress: components["schemas"]["JobProgress"];
             /** Warnings */
             warnings: string[];
+            /** Logs */
+            logs: components["schemas"]["JobLogEntry"][];
             /** Review State */
             review_state: string | null;
             /** Error Code */
@@ -326,6 +471,28 @@ export interface components {
             /** Stage */
             stage: string | null;
         };
+        /** LostConfirmedEdit */
+        LostConfirmedEdit: {
+            /** Object Id */
+            object_id: string;
+            /** Reason */
+            reason: string;
+        };
+        /** ReprocessResponse */
+        ReprocessResponse: {
+            /** Document Id */
+            document_id: string;
+            /** Job Id */
+            job_id: string;
+            /** Status */
+            status: string;
+        };
+        /** ResolveReviewItemRequest */
+        ResolveReviewItemRequest: {
+            /** Action */
+            action: string;
+            correction?: components["schemas"]["RevisionEditsRequest"] | null;
+        };
         /** ReviewItem */
         ReviewItem: {
             /** Id */
@@ -334,10 +501,21 @@ export interface components {
             issue_key: string;
             /** Object Id */
             object_id: string | null;
+            /** Relationship Id */
+            relationship_id?: string | null;
             /** Issue Type */
             issue_type: string;
             /** Severity */
             severity: string;
+            /** Crop Uri */
+            crop_uri?: string | null;
+            /**
+             * Proposed Options
+             * @default []
+             */
+            proposed_options: {
+                [key: string]: unknown;
+            }[];
             /** State */
             state: string;
         };
@@ -348,6 +526,13 @@ export interface components {
             /** Items */
             items: components["schemas"]["ReviewItem"][];
         };
+        /** RevisionEditsRequest */
+        RevisionEditsRequest: {
+            /** Commands */
+            commands: {
+                [key: string]: unknown;
+            }[];
+        };
         /** RevisionListResponse */
         RevisionListResponse: {
             /** Document Id */
@@ -356,6 +541,15 @@ export interface components {
             current_revision_id: string | null;
             /** Revisions */
             revisions: components["schemas"]["RevisionSummary"][];
+        };
+        /** RevisionMutationResponse */
+        RevisionMutationResponse: {
+            /** Revision Id */
+            revision_id: string;
+            /** Review State */
+            review_state: string;
+            /** Scene Checksum Sha256 */
+            scene_checksum_sha256: string;
         };
         /** RevisionSummary */
         RevisionSummary: {
@@ -576,6 +770,73 @@ export interface operations {
             };
         };
     };
+    reprocess_document_api_v1_documents__document_id__reprocess_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReprocessResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Missing caller identity */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     get_document_source_api_v1_documents__document_id__source_get: {
         parameters: {
             query?: never;
@@ -644,6 +905,73 @@ export interface operations {
         };
     };
     get_document_display_api_v1_documents__document_id__display_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Missing caller identity */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get_document_trace_api_v1_documents__document_id__trace_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -895,6 +1223,283 @@ export interface operations {
             };
             /** @description Not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    post_revision_edits_api_v1_documents__document_id__revisions__revision_id__edits_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                document_id: string;
+                revision_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RevisionEditsRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevisionMutationResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Missing caller identity */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Precondition required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    post_resolve_review_item_api_v1_documents__document_id__revisions__revision_id__review_items__item_id__resolve_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                document_id: string;
+                revision_id: string;
+                item_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ResolveReviewItemRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RevisionMutationResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Missing caller identity */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Precondition required */
+            428: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Internal server error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    post_adopt_candidate_api_v1_documents__document_id__revisions__revision_id__adopt_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-Match"?: string | null;
+            };
+            path: {
+                document_id: string;
+                revision_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdoptCandidateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdoptCandidateResponse"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Missing caller identity */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Precondition required */
+            428: {
                 headers: {
                     [name: string]: unknown;
                 };

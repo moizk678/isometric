@@ -1,10 +1,13 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import Link from 'next/link';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AlertCircle, FileImage, Upload } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import { ApiError } from '@/api/http';
 import { createDocument } from '@/api/documents';
+import { isTerminalJobState } from '@/api/jobs';
+import { JobLogPanel } from '@/components/job/JobLogPanel';
+import { useJobPolling } from '@/components/job/useJobPolling';
 import {
   ACCEPTED_IMAGE_EXTENSIONS,
   ACCEPTED_IMAGE_TYPES,
@@ -17,7 +20,7 @@ export type UploadZoneProps = {
   profileId?: string;
 };
 
-type UploadPhase = 'idle' | 'uploading' | 'failed';
+type UploadPhase = 'idle' | 'uploading' | 'processing' | 'succeeded' | 'failed';
 
 function validateFile(file: File): string | null {
   if (!ACCEPTED_IMAGE_TYPES.has(file.type)) {
@@ -29,8 +32,22 @@ function validateFile(file: File): string | null {
   return null;
 }
 
+function attachmentSubtitle(phase: UploadPhase): string {
+  switch (phase) {
+    case 'uploading':
+      return 'Uploading…';
+    case 'processing':
+      return 'Processing…';
+    case 'succeeded':
+      return 'Ready to review';
+    case 'failed':
+      return 'Processing failed';
+    default:
+      return 'Ready to upload';
+  }
+}
+
 export function UploadZone({ profileId = 'piping_isometric' }: UploadZoneProps) {
-  const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [phase, setPhase] = useState<UploadPhase>('idle');
@@ -39,6 +56,25 @@ export function UploadZone({ profileId = 'piping_isometric' }: UploadZoneProps) 
   const [validationError, setValidationError] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [requestId, setRequestId] = useState<string | null>(null);
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const [documentId, setDocumentId] = useState<string | null>(null);
+
+  const { job } = useJobPolling(activeJobId);
+
+  useEffect(() => {
+    if (phase !== 'processing' || !job) {
+      return;
+    }
+    if (job.state === 'succeeded') {
+      setPhase('succeeded');
+      setDocumentId(job.document_id);
+      return;
+    }
+    if (job.state === 'failed' || job.state === 'canceled') {
+      setPhase('failed');
+      setUploadError(job.state === 'canceled' ? 'Processing was canceled.' : 'Processing failed. Try again.');
+    }
+  }, [job, phase]);
 
   const assignFile = useCallback((file: File) => {
     const validation = validateFile(file);
@@ -49,6 +85,8 @@ export function UploadZone({ profileId = 'piping_isometric' }: UploadZoneProps) 
     setValidationError(null);
     setUploadError(null);
     setRequestId(null);
+    setActiveJobId(null);
+    setDocumentId(null);
     setSelectedFile(file);
     setIdempotencyKey(crypto.randomUUID());
     setPhase('idle');
@@ -61,13 +99,17 @@ export function UploadZone({ profileId = 'piping_isometric' }: UploadZoneProps) 
     setPhase('uploading');
     setUploadError(null);
     setRequestId(null);
+    setActiveJobId(null);
+    setDocumentId(null);
     try {
       const response = await createDocument(selectedFile, {
         profileId,
         idempotencyKey,
       });
       if (response.job_id) {
-        router.push(`/jobs/${response.job_id}`);
+        setActiveJobId(response.job_id);
+        setDocumentId(response.document_id);
+        setPhase('processing');
         return;
       }
       setPhase('failed');
@@ -81,7 +123,7 @@ export function UploadZone({ profileId = 'piping_isometric' }: UploadZoneProps) 
         setUploadError('Upload failed. Try again.');
       }
     }
-  }, [idempotencyKey, profileId, router, selectedFile]);
+  }, [idempotencyKey, profileId, selectedFile]);
 
   const onInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -99,7 +141,13 @@ export function UploadZone({ profileId = 'piping_isometric' }: UploadZoneProps) 
     }
   };
 
-  const showAttachment = selectedFile && (phase === 'failed' || phase === 'uploading' || phase === 'idle');
+  const showAttachment =
+    selectedFile &&
+    (phase === 'failed' || phase === 'uploading' || phase === 'processing' || phase === 'succeeded' || phase === 'idle');
+
+  const showLogPanel = phase === 'processing' || phase === 'succeeded' || (phase === 'failed' && job && job.logs.length > 0);
+  const logs = job?.logs ?? [];
+  const busy = phase === 'uploading' || (phase === 'processing' && (!job || !isTerminalJobState(job.state)));
 
   return (
     <div className="min-w-0 max-w-full space-y-4">
@@ -141,7 +189,7 @@ export function UploadZone({ profileId = 'piping_isometric' }: UploadZoneProps) 
           onChange={onInputChange}
           data-testid="upload-file-input"
         />
-        <Button type="button" onClick={() => inputRef.current?.click()} disabled={phase === 'uploading'}>
+        <Button type="button" onClick={() => inputRef.current?.click()} disabled={busy}>
           Choose files
         </Button>
       </div>
@@ -160,14 +208,20 @@ export function UploadZone({ profileId = 'piping_isometric' }: UploadZoneProps) 
           </div>
           <div className="min-w-0 flex-1">
             <p className="m-0 break-words text-[13px] font-medium leading-5">{selectedFile.name}</p>
-            <p className="m-0 text-[11px] leading-4 text-ink-secondary">
-              {phase === 'uploading' ? 'Uploading…' : phase === 'failed' ? 'Upload failed' : 'Ready to upload'}
-            </p>
+            <p className="m-0 text-[11px] leading-4 text-ink-secondary">{attachmentSubtitle(phase)}</p>
             {requestId ? (
               <p className="mt-1 font-mono text-[11px] leading-4 text-ink-muted">Request ID: {requestId}</p>
             ) : null}
           </div>
-          {phase === 'failed' ? (
+          {phase === 'succeeded' && documentId ? (
+            <Link
+              href={`/documents/${documentId}`}
+              className="inline-flex min-h-9 shrink-0 items-center rounded-xl bg-ink-primary px-3 text-[13px] font-medium text-surface-panel hover:opacity-90 focus-visible:focus-ring"
+              data-testid="upload-open-document"
+            >
+              Open document
+            </Link>
+          ) : phase === 'failed' ? (
             <Button
               type="button"
               variant="secondary"
@@ -184,8 +238,8 @@ export function UploadZone({ profileId = 'piping_isometric' }: UploadZoneProps) 
             <Button
               type="button"
               size="compact"
-              loading={phase === 'uploading'}
-              disabled={phase === 'uploading'}
+              loading={busy}
+              disabled={busy || phase !== 'idle'}
               onClick={() => {
                 void upload();
               }}
@@ -196,6 +250,8 @@ export function UploadZone({ profileId = 'piping_isometric' }: UploadZoneProps) 
           )}
         </div>
       ) : null}
+
+      {showLogPanel ? <JobLogPanel logs={logs} /> : null}
 
       {uploadError && phase === 'failed' ? (
         <p className="text-sm text-ink-danger" role="alert">{uploadError}</p>

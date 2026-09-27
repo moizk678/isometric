@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { displayImageUrl, svgDownloadName, svgExportUrl } from './revisions';
+import { displayImageUrl, documentTraceUrl, svgDownloadName, svgExportUrl, traceExportUrl } from './revisions';
 
 describe('revision URLs', () => {
   it('builds same-origin display and export URLs', () => {
     expect(displayImageUrl('doc 1')).toBe('/api/v1/documents/doc%201/display');
     expect(svgExportUrl('doc-1', 'rev-1')).toBe('/api/v1/documents/doc-1/revisions/rev-1/exports/svg');
+    expect(traceExportUrl('doc-1', 'rev-1')).toBe('/api/v1/documents/doc-1/revisions/rev-1/exports/trace');
+    expect(documentTraceUrl('doc-1')).toBe('/api/v1/documents/doc-1/trace');
   });
 });
 

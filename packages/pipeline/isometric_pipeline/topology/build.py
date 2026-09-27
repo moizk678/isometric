@@ -130,12 +130,15 @@ def build_topology(
         for member in cluster.members:
             seg_endpoint_node[(member.segment_id, member.end_index)] = node_id
 
+    node_by_id = {node.id: node for node in nodes}
     edges: list[EdgeCandidate] = []
     for seg in merged:
         start_node = seg_endpoint_node.get((seg.segment_id, 0))
         end_node = seg_endpoint_node.get((seg.segment_id, 1))
         if start_node is None or end_node is None:
             continue
+        start_node_obj = node_by_id[start_node]
+        end_node_obj = node_by_id[end_node]
         continuity = 1.0
         if _in_symbol_region(
             (seg.start_x + seg.end_x) / 2,
@@ -150,8 +153,14 @@ def build_topology(
                 start_node_id=start_node,
                 end_node_id=end_node,
                 layer_id=seg.layer_id,
-                start=PagePoint(x=seg.start_x, y=seg.start_y),
-                end=PagePoint(x=seg.end_x, y=seg.end_y),
+                start=PagePoint(
+                    x=start_node_obj.position.x,
+                    y=start_node_obj.position.y,
+                ),
+                end=PagePoint(
+                    x=end_node_obj.position.x,
+                    y=end_node_obj.position.y,
+                ),
                 source_primitive_ids=seg.merged_primitive_ids,
                 component_ids=seg.merged_component_ids,
                 scores=EvidenceScores(

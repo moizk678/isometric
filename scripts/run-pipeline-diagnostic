@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+ROOT="$(pwd)"
+export PYTHONPATH="${ROOT}/services/api:${ROOT}/services/worker:${ROOT}/packages/pipeline:${ROOT}/packages/persistence"
+
+exec .venv/bin/python -m isometric_worker.pipeline_diagnostic "$@"

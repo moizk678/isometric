@@ -262,6 +262,166 @@
         }
       }
     },
+    "/api/v1/documents/{document_id}/reprocess": {
+      "post": {
+        "summary": "Reprocess Document",
+        "operationId": "reprocess_document_api_v1_documents__document_id__reprocess_post",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReprocessResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing caller identity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/drawing-reading": {
+      "get": {
+        "summary": "Get Document Drawing Reading",
+        "operationId": "get_document_drawing_reading_api_v1_documents__document_id__drawing_reading_get",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DrawingReadingResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing caller identity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/documents/{document_id}/source": {
       "get": {
         "summary": "Get Document Source",
@@ -344,6 +504,84 @@
       "get": {
         "summary": "Get Document Display",
         "operationId": "get_document_display_api_v1_documents__document_id__display_get",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing caller identity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/trace": {
+      "get": {
+        "summary": "Get Document Trace",
+        "operationId": "get_document_trace_api_v1_documents__document_id__trace_get",
         "parameters": [
           {
             "name": "document_id",
@@ -676,6 +914,424 @@
         }
       }
     },
+    "/api/v1/documents/{document_id}/revisions/{revision_id}/edits": {
+      "post": {
+        "summary": "Post Revision Edits",
+        "operationId": "post_revision_edits_api_v1_documents__document_id__revisions__revision_id__edits_post",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Document Id"
+            }
+          },
+          {
+            "name": "revision_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Revision Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevisionEditsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevisionMutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing caller identity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Precondition required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/revisions/{revision_id}/review-items/{item_id}/resolve": {
+      "post": {
+        "summary": "Post Resolve Review Item",
+        "operationId": "post_resolve_review_item_api_v1_documents__document_id__revisions__revision_id__review_items__item_id__resolve_post",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Document Id"
+            }
+          },
+          {
+            "name": "revision_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Revision Id"
+            }
+          },
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Item Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveReviewItemRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevisionMutationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing caller identity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Precondition required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/documents/{document_id}/revisions/{revision_id}/adopt": {
+      "post": {
+        "summary": "Post Adopt Candidate",
+        "operationId": "post_adopt_candidate_api_v1_documents__document_id__revisions__revision_id__adopt_post",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Document Id"
+            }
+          },
+          {
+            "name": "revision_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Revision Id"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdoptCandidateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdoptCandidateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing caller identity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "428": {
+            "description": "Precondition required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/documents/{document_id}/revisions/{revision_id}/exports/{kind}": {
       "get": {
         "summary": "Get Export",
@@ -936,6 +1592,50 @@
   },
   "components": {
     "schemas": {
+      "AdoptCandidateRequest": {
+        "properties": {
+          "candidate_revision_id": {
+            "type": "string",
+            "title": "Candidate Revision Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "candidate_revision_id"
+        ],
+        "title": "AdoptCandidateRequest"
+      },
+      "AdoptCandidateResponse": {
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "title": "Document Id"
+          },
+          "current_revision_id": {
+            "type": "string",
+            "title": "Current Revision Id"
+          },
+          "review_state": {
+            "type": "string",
+            "title": "Review State"
+          },
+          "lost_confirmed_edits": {
+            "items": {
+              "$ref": "#/components/schemas/LostConfirmedEdit"
+            },
+            "type": "array",
+            "title": "Lost Confirmed Edits"
+          }
+        },
+        "type": "object",
+        "required": [
+          "document_id",
+          "current_revision_id",
+          "review_state",
+          "lost_confirmed_edits"
+        ],
+        "title": "AdoptCandidateResponse"
+      },
       "Body_create_document_api_v1_documents_post": {
         "properties": {
           "file": {
@@ -1206,6 +1906,143 @@
         ],
         "title": "DocumentListResponse"
       },
+      "DrawingReadingGroup": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/DrawingReadingRow"
+            },
+            "type": "array",
+            "title": "Rows"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "rows"
+        ],
+        "title": "DrawingReadingGroup"
+      },
+      "DrawingReadingResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "error_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Code"
+          },
+          "schema_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Schema Version"
+          },
+          "prompt_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Version"
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "groups": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/DrawingReadingGroup"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Groups"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "DrawingReadingResponse"
+      },
+      "DrawingReadingRow": {
+        "properties": {
+          "location": {
+            "type": "string",
+            "title": "Location"
+          },
+          "reading": {
+            "type": "string",
+            "title": "Reading"
+          }
+        },
+        "type": "object",
+        "required": [
+          "location",
+          "reading"
+        ],
+        "title": "DrawingReadingRow"
+      },
       "ErrorResponse": {
         "properties": {
           "code": {
@@ -1251,6 +2088,52 @@
           "cancel_requested"
         ],
         "title": "JobCancelResponse"
+      },
+      "JobLogEntry": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "level": {
+            "type": "string",
+            "title": "Level"
+          },
+          "stage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stage"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "detail": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "created_at",
+          "level",
+          "stage",
+          "message",
+          "detail"
+        ],
+        "title": "JobLogEntry"
       },
       "JobProgress": {
         "properties": {
@@ -1316,6 +2199,13 @@
             "type": "array",
             "title": "Warnings"
           },
+          "logs": {
+            "items": {
+              "$ref": "#/components/schemas/JobLogEntry"
+            },
+            "type": "array",
+            "title": "Logs"
+          },
           "review_state": {
             "anyOf": [
               {
@@ -1371,6 +2261,7 @@
           "attempt",
           "progress",
           "warnings",
+          "logs",
           "review_state",
           "error_code",
           "result_revision_id",
@@ -1452,6 +2343,70 @@
         ],
         "title": "LatestJobSummary"
       },
+      "LostConfirmedEdit": {
+        "properties": {
+          "object_id": {
+            "type": "string",
+            "title": "Object Id"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "object_id",
+          "reason"
+        ],
+        "title": "LostConfirmedEdit"
+      },
+      "ReprocessResponse": {
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "title": "Document Id"
+          },
+          "job_id": {
+            "type": "string",
+            "title": "Job Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "document_id",
+          "job_id",
+          "status"
+        ],
+        "title": "ReprocessResponse"
+      },
+      "ResolveReviewItemRequest": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "correction": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RevisionEditsRequest"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "title": "ResolveReviewItemRequest"
+      },
       "ReviewItem": {
         "properties": {
           "id": {
@@ -1473,6 +2428,17 @@
             ],
             "title": "Object Id"
           },
+          "relationship_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relationship Id"
+          },
           "issue_type": {
             "type": "string",
             "title": "Issue Type"
@@ -1480,6 +2446,26 @@
           "severity": {
             "type": "string",
             "title": "Severity"
+          },
+          "crop_uri": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Crop Uri"
+          },
+          "proposed_options": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Proposed Options",
+            "default": []
           },
           "state": {
             "type": "string",
@@ -1518,6 +2504,23 @@
         ],
         "title": "ReviewItemListResponse"
       },
+      "RevisionEditsRequest": {
+        "properties": {
+          "commands": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Commands"
+          }
+        },
+        "type": "object",
+        "required": [
+          "commands"
+        ],
+        "title": "RevisionEditsRequest"
+      },
       "RevisionListResponse": {
         "properties": {
           "document_id": {
@@ -1550,6 +2553,29 @@
           "revisions"
         ],
         "title": "RevisionListResponse"
+      },
+      "RevisionMutationResponse": {
+        "properties": {
+          "revision_id": {
+            "type": "string",
+            "title": "Revision Id"
+          },
+          "review_state": {
+            "type": "string",
+            "title": "Review State"
+          },
+          "scene_checksum_sha256": {
+            "type": "string",
+            "title": "Scene Checksum Sha256"
+          }
+        },
+        "type": "object",
+        "required": [
+          "revision_id",
+          "review_state",
+          "scene_checksum_sha256"
+        ],
+        "title": "RevisionMutationResponse"
       },
       "RevisionSummary": {
         "properties": {

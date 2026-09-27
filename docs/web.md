@@ -4,6 +4,8 @@ Next.js product UI for upload, job progress, and fixture-backed review. The brow
 
 ## Run locally
 
+From the repo root you can also use `pnpm dev:api` and `pnpm dev:web` (wrappers around `./scripts/run-api` and `./scripts/run-web`).
+
 ### Prerequisites
 
 Same persistence setup as the API ([upload-and-jobs.md](./upload-and-jobs.md)):

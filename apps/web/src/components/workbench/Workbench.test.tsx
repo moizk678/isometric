@@ -3,9 +3,15 @@ import userEvent from '@testing-library/user-event';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createTestServer } from '@/test/msw/server';
 import {
+  drawingReadingHandlers,
+  resetDrawingReadingFixtures,
+  setDrawingReading,
+} from '@/test/msw/handlers/drawingReading';
+import {
   WORKBENCH_DOCUMENT_ID,
   WORKBENCH_OLD_REVISION_ID,
   WORKBENCH_REVISION_ID,
+  resetWorkbenchRevisionFixtures,
   revisionHandlers,
 } from '@/test/msw/handlers/revisions';
 import { currentSearchParams, replaceCalls, resetNavigation } from './testing/mockNavigation';
@@ -25,7 +31,9 @@ beforeAll(() => {
   });
 });
 beforeEach(() => {
-  server.use(...revisionHandlers);
+  resetWorkbenchRevisionFixtures();
+  resetDrawingReadingFixtures();
+  server.use(...revisionHandlers, ...drawingReadingHandlers);
   requestedUrls.length = 0;
 });
 afterEach(() => {
@@ -37,6 +45,7 @@ afterAll(() => server.close());
 function viewers() {
   return {
     original: screen.queryByRole('group', { name: 'Original drawing' }),
+    trace: screen.queryByRole('group', { name: 'Trace export' }),
     svg: screen.queryByRole('group', { name: 'SVG export' }),
   };
 }
@@ -59,13 +68,18 @@ describe('Workbench at wide width', () => {
     await renderWorkbench();
     await screen.findByRole('heading', { name: 'line-12 iso.jpg' });
 
-    const { original, svg } = viewers();
+    const { original, trace, svg } = viewers();
     expect(original).toBeTruthy();
+    expect(trace).toBeTruthy();
     expect(svg).toBeTruthy();
 
     const displayImg = within(original!).getByRole('img', { name: /Original drawing/ });
     expect(displayImg.getAttribute('src')).toBe(`/api/v1/documents/${WORKBENCH_DOCUMENT_ID}/display`);
     expect(displayImg.className).toContain('object-contain');
+
+    const traceUrl = `/api/v1/documents/${WORKBENCH_DOCUMENT_ID}/revisions/${WORKBENCH_REVISION_ID}/exports/trace`;
+    const traceImg = within(trace!).getByRole('img', { name: /Trace export/ });
+    expect(traceImg.getAttribute('src')).toBe(traceUrl);
 
     const exportUrl = `/api/v1/documents/${WORKBENCH_DOCUMENT_ID}/revisions/${WORKBENCH_REVISION_ID}/exports/svg`;
     const exportImg = within(svg!).getByRole('img', { name: /SVG export/ });
@@ -78,7 +92,7 @@ describe('Workbench at wide width', () => {
     expect(within(original!).getByTestId('source-overlay').getAttribute('viewBox')).toBe('0 0 480 640');
     expect(requestedUrls).not.toContain(exportUrl);
 
-    const download = screen.getByRole('link', { name: 'Download SVG' });
+    const download = screen.getByRole('link', { name: 'Download draft semantic SVG' });
     expect(download.getAttribute('href')).toBe(exportUrl);
     expect(download.getAttribute('download')).toBe('line-12 iso.svg');
   });
@@ -173,6 +187,34 @@ describe('Workbench at wide width', () => {
     await renderWorkbench('', 'doc-missing');
     expect(await screen.findByText(/req-not-found/)).toBeTruthy();
   });
+
+  it('switches to Reading and shows the location table without zoom controls', async () => {
+    const user = await renderWorkbench();
+    await screen.findByRole('heading', { name: 'line-12 iso.jpg' });
+    expect(screen.getByLabelText('Zoom level relative to fit')).toBeTruthy();
+
+    await user.click(screen.getByRole('tab', { name: 'Reading' }));
+    expect(screen.getByRole('region', { name: 'Drawing reading' })).toBeTruthy();
+    expect(screen.getByText('Bottom run')).toBeTruthy();
+    expect(screen.queryByLabelText('Zoom level relative to fit')).toBeNull();
+    expect(requestedUrls.filter((path) => path.endsWith('/drawing-reading')).length).toBeGreaterThan(0);
+  });
+
+  it('shows pending reading state on the Reading view', async () => {
+    setDrawingReading(WORKBENCH_DOCUMENT_ID, { status: 'pending' });
+    const user = await renderWorkbench();
+    await screen.findByRole('heading', { name: 'line-12 iso.jpg' });
+    await user.click(screen.getByRole('tab', { name: 'Reading' }));
+    expect(await screen.findByRole('progressbar', { name: 'Reading the drawing' })).toBeTruthy();
+  });
+
+  it('shows disabled reading state', async () => {
+    setDrawingReading(WORKBENCH_DOCUMENT_ID, { status: 'disabled' });
+    const user = await renderWorkbench();
+    await screen.findByRole('heading', { name: 'line-12 iso.jpg' });
+    await user.click(screen.getByRole('tab', { name: 'Reading' }));
+    expect(await screen.findByText('Drawing reading is turned off')).toBeTruthy();
+  });
 });
 
 describe('Workbench below 900px', () => {
@@ -184,10 +226,10 @@ describe('Workbench below 900px', () => {
 
   it('shows one canvas at a time and keeps zoom and selection across the switch', async () => {
     const user = await renderWorkbench();
-    const originalTab = await screen.findByRole('tab', { name: 'Original' });
+    const originalTab = await screen.findByRole('tab', { name: 'Trace' });
     expect(originalTab.getAttribute('aria-selected')).toBe('true');
-    expect(viewers().original).toBeTruthy();
-    expect(viewers().svg).toBeNull();
+    expect(viewers().trace).toBeTruthy();
+    expect(viewers().original).toBeNull();
     expect(screen.queryByRole('listbox', { name: 'Scene objects' })).toBeNull();
 
     const reviewButton = screen.getByRole('button', { name: /Review/ });
@@ -201,6 +243,7 @@ describe('Workbench below 900px', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(document.activeElement).toBe(reviewButton);
 
+    await user.click(screen.getByRole('tab', { name: 'Original' }));
     const original = viewers().original!;
     expect(original.getAttribute('data-selected-object')).toBe('obj-p1');
     original.focus();
@@ -209,7 +252,7 @@ describe('Workbench below 900px', () => {
     const center = original.getAttribute('data-center');
     expect(zoom).toBe('1.563');
 
-    await user.click(screen.getByRole('tab', { name: 'SVG' }));
+    await user.click(screen.getByRole('tab', { name: 'Semantic' }));
     expect(viewers().original).toBeNull();
     const svg = viewers().svg!;
     expect(svg.getAttribute('data-selected-object')).toBe('obj-p1');
@@ -224,8 +267,27 @@ describe('Workbench below 900px', () => {
 
   it('gives the canvas switch 44px targets', async () => {
     await renderWorkbench();
-    const tab = await screen.findByRole('tab', { name: 'SVG' });
+    const tab = await screen.findByRole('tab', { name: 'Semantic' });
     expect(tab.parentElement!.className).toContain('[&>button]:h-11');
+  });
+
+  it('shows Reading as a fourth canvas without zoom controls', async () => {
+    const user = await renderWorkbench();
+    await screen.findByRole('tab', { name: 'Trace' });
+    expect(screen.getByLabelText('Zoom level relative to fit')).toBeTruthy();
+
+    await user.click(screen.getByRole('tab', { name: 'Reading' }));
+    expect(await screen.findByText('Bottom run')).toBeTruthy();
+    expect(screen.queryByLabelText('Zoom level relative to fit')).toBeNull();
+    expect(viewers().trace).toBeNull();
+  });
+
+  it('shows absent reading on narrow layout', async () => {
+    setDrawingReading(WORKBENCH_DOCUMENT_ID, { status: 'absent' });
+    const user = await renderWorkbench();
+    await screen.findByRole('tab', { name: 'Trace' });
+    await user.click(screen.getByRole('tab', { name: 'Reading' }));
+    expect(await screen.findByText('No reading for this drawing')).toBeTruthy();
   });
 });
 
@@ -234,7 +296,7 @@ describe('Workbench loading', () => {
     const restore = installResizeObserver({ width: 1280, height: 600 });
     await renderWorkbench();
     expect(screen.getByRole('progressbar', { name: 'Loading drawing' })).toBeTruthy();
-    await waitFor(() => expect(viewers().svg).toBeTruthy());
+    await waitFor(() => expect(viewers().trace).toBeTruthy());
     restore();
   });
 });

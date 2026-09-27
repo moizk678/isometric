@@ -8,7 +8,7 @@ import numpy as np
 from PIL import Image
 
 from isometric_pipeline.masks.util import encode_crop_png
-from isometric_pipeline.regions.artifact import PageBBox, RegionsMetadata
+from isometric_pipeline.regions.artifact import PageBBox
 
 
 def decode_mask_png(png: bytes, height: int, width: int) -> np.ndarray:
@@ -19,19 +19,16 @@ def decode_mask_png(png: bytes, height: int, width: int) -> np.ndarray:
     return gray
 
 
-def apply_protection_boxes(
-    mask: np.ndarray, regions: RegionsMetadata | None
+def apply_protection_mask(
+    mask: np.ndarray, protection: np.ndarray | None
 ) -> np.ndarray:
-    if regions is None or not regions.regions:
+    """Zero ink that belongs to protected components, not their bounding boxes."""
+    if protection is None:
         return mask
+    if protection.shape != mask.shape:
+        raise ValueError("protection mask dimensions do not match")
     out = mask.copy()
-    for region in regions.regions:
-        x0 = max(0, int(region.bbox.x))
-        y0 = max(0, int(region.bbox.y))
-        x1 = min(mask.shape[1], int(region.bbox.x + region.bbox.width))
-        y1 = min(mask.shape[0], int(region.bbox.y + region.bbox.height))
-        if x1 > x0 and y1 > y0:
-            out[y0:y1, x0:x1] = 0
+    out[protection > 0] = 0
     return out
 
 

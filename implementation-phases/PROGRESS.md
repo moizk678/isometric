@@ -18,8 +18,8 @@ Update this file after a run's exit criteria pass. `planned` is not `complete`; 
 | 11 | complete | [handoff](11-HANDOFF.md) | `transcribe_regions`, `text-candidates.json`; TrOCR + FakeOCR in CI; accuracy unmeasured on real handwriting. |
 | 12 | complete | [handoff](12-HANDOFF.md) | `classify_symbol_regions`, `symbol-candidates.json`; template + Fake classifier in CI; per-class accuracy unmeasured on real drawings. |
 | 13 | complete | [handoff](13-HANDOFF.md) | `associate_markup`, `association-candidates.json`; synthetic fixtures in CI; real-drawing association accuracy unmeasured. |
-| 14 | planned | — | |
-| 15 | planned | — | |
+| 14 | complete | [handoff](14-HANDOFF.md) | `assemble_scene`, real worker path, reprocess API, diagnostic CLI; fixture escape hatch retained for API tests. |
+| 15 | complete | [handoff](15-HANDOFF.md) | Semantic edit/resolve/adopt APIs, workbench properties and review actions, reprocess confirmed overlay. |
 | 16 | planned | — | Provider credentials/policy required for live invocation. |
 | 17 | planned | — | Held-out real dataset required for accuracy claims. |
 | 18 | planned | — | Auth provider and retention policy must be chosen. |

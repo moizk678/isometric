@@ -5,6 +5,7 @@ import { AlertTriangle, CircleAlert, Info } from 'lucide-react';
 import type { DrawingScene, ReviewItem } from '@/api/revisions';
 import { StatusBadge, type StatusBadgeProps } from '@/components/ui';
 import type { SceneObject } from '@/lib/geometry';
+import { Button } from '@/components/ui';
 import { Listbox } from './Listbox';
 import { formatIssueType, formatScore, objectTitle } from './objectLabels';
 
@@ -13,6 +14,8 @@ export type ReviewPaneProps = {
   reviewItems: ReviewItem[];
   selectedObjectId: string | null;
   onActivateObject: (objectId: string) => void;
+  onResolveItem?: (itemId: string, action: 'confirm' | 'acknowledge_unknown') => void;
+  resolvePending?: boolean;
 };
 
 const severityConfig: Record<string, { label: string; tone: StatusBadgeProps['tone']; icon: ReactNode }> = {
@@ -83,7 +86,14 @@ function EvidenceDetail({ object }: { object: SceneObject | undefined }) {
   );
 }
 
-export function ReviewPane({ scene, reviewItems, selectedObjectId, onActivateObject }: ReviewPaneProps) {
+export function ReviewPane({
+  scene,
+  reviewItems,
+  selectedObjectId,
+  onActivateObject,
+  onResolveItem,
+  resolvePending = false,
+}: ReviewPaneProps) {
   const selectedObject = scene.objects.find((object) => object.id === selectedObjectId);
 
   return (
@@ -93,6 +103,31 @@ export function ReviewPane({ scene, reviewItems, selectedObjectId, onActivateObj
       </Section>
 
       <Section title={`Review items (${reviewItems.length})`}>
+        {selectedObjectId && onResolveItem ? (
+          <div className="flex flex-wrap gap-2">
+            {reviewItems
+              .filter((item) => item.object_id === selectedObjectId && item.state === 'open')
+              .map((item) => (
+                <div key={item.id} className="flex w-full flex-wrap gap-2 rounded-[var(--radius-inset)] bg-surface-inset p-3">
+                  <span className="w-full text-xs text-ink-secondary">{formatIssueType(item.issue_type)}</span>
+                  <Button
+                    variant="primary"
+                    disabled={resolvePending}
+                    onClick={() => onResolveItem(item.id, 'confirm')}
+                  >
+                    Confirm
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    disabled={resolvePending}
+                    onClick={() => onResolveItem(item.id, 'acknowledge_unknown')}
+                  >
+                    Unknown
+                  </Button>
+                </div>
+              ))}
+          </div>
+        ) : null}
         <Listbox
           label="Review items"
           emptyText="No review items for this revision."

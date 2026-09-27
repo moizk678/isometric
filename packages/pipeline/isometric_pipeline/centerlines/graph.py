@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 import cv2
@@ -104,16 +105,30 @@ def extract_layer_graph(
         junctions = _junction_pixels(comp_skel)
         polylines = _trace_polylines(comp_skel, junctions)
         node_ids_by_key: dict[tuple[int, int], str] = {}
-
+        corners: set[tuple[int, int]] = set()
+        split_polylines: list[list[tuple[int, int]]] = []
         for poly in polylines:
+            parts = _split_polyline_on_turns(poly, profile.max_turning_angle_deg)
+            if len(parts) > 1:
+                for part in parts[1:]:
+                    corners.add(part[0])
+            split_polylines.extend(parts)
+
+        for poly in split_polylines:
             if len(poly) < 2:
                 continue
             start_y, start_x = poly[0]
             end_y, end_x = poly[-1]
             start_kind: NodeKind = (
-                "branch" if (start_y, start_x) in junctions else "endpoint"
+                "branch"
+                if (start_y, start_x) in junctions or (start_y, start_x) in corners
+                else "endpoint"
             )
-            end_kind: NodeKind = "branch" if (end_y, end_x) in junctions else "endpoint"
+            end_kind: NodeKind = (
+                "branch"
+                if (end_y, end_x) in junctions or (end_y, end_x) in corners
+                else "endpoint"
+            )
             start_id, node_index = _ensure_node(
                 nodes,
                 node_ids_by_key,
@@ -234,6 +249,50 @@ def _trace_polylines(
             polylines.append(poly)
 
     return polylines
+
+
+def _split_polyline_on_turns(
+    poly: list[tuple[int, int]],
+    max_angle_deg: float,
+    window: int = 8,
+) -> list[list[tuple[int, int]]]:
+    """Break a path where its direction changes, so an elbow becomes two legs.
+
+    The window is long enough that a one-pixel staircase on a straight diagonal
+    does not count as a turn.
+    """
+    if max_angle_deg <= 0 or len(poly) < window * 2 + 1:
+        return [poly]
+    cuts = [0]
+    index = window
+    last = len(poly) - window
+    while index < last:
+        if _turn_degrees(poly[index - window], poly[index], poly[index + window]) > max_angle_deg:
+            cuts.append(index)
+            index += window
+        else:
+            index += 1
+    cuts.append(len(poly) - 1)
+    segments: list[list[tuple[int, int]]] = []
+    for start, end in zip(cuts, cuts[1:], strict=False):
+        segment = poly[start : end + 1]
+        if len(segment) >= 2:
+            segments.append(segment)
+    return segments or [poly]
+
+
+def _turn_degrees(
+    before: tuple[int, int],
+    corner: tuple[int, int],
+    after: tuple[int, int],
+) -> float:
+    ay, ax = before
+    by, bx = corner
+    cy, cx = after
+    angle_in = math.atan2(by - ay, bx - ax)
+    angle_out = math.atan2(cy - by, cx - bx)
+    delta = abs((angle_out - angle_in + math.pi) % (2 * math.pi) - math.pi)
+    return math.degrees(delta)
 
 
 def _ordered_edge(

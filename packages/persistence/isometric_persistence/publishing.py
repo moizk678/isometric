@@ -57,6 +57,7 @@ class RevisionPublisher:
         intent_grace_seconds: int = 300,
         write_artifacts: bool = True,
         revision_id: uuid.UUID | None = None,
+        advance_current_revision: bool = True,
     ) -> PublishResult:
         revision_id = revision_id or uuid.uuid4()
         scene_key = revision_scene_key(document_id, revision_id)
@@ -129,12 +130,13 @@ class RevisionPublisher:
                         source_revision_id=carry_review_items_from,
                         target_revision_id=revision_id,
                     )
-                self._revisions.compare_and_swap_current(
-                    conn,
-                    document_id=document_id,
-                    expected_parent_revision_id=expected_parent_revision_id,
-                    new_revision_id=revision_id,
-                )
+                if advance_current_revision:
+                    self._revisions.compare_and_swap_current(
+                        conn,
+                        document_id=document_id,
+                        expected_parent_revision_id=expected_parent_revision_id,
+                        new_revision_id=revision_id,
+                    )
                 conn.execute(
                     "DELETE FROM drawing.publication_intents WHERE id = %s",
                     (intent_id,),

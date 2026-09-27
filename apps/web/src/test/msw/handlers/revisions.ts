@@ -114,8 +114,11 @@ export function makeWorkbenchReviewItems(scene: DrawingScene): ReviewItemListRes
         id: `item-${object.id}`,
         issue_key: `fixture_low_confidence:${object.id}`,
         object_id: object.id,
+        relationship_id: null,
         issue_type: 'fixture_low_confidence',
         severity: severityForScore(object.interpretation.score),
+        crop_uri: null,
+        proposed_options: [],
         state: 'open',
       })),
   };
@@ -149,6 +152,25 @@ function notFound(message: string): Response {
 
 const KNOWN_REVISIONS = new Set([WORKBENCH_REVISION_ID, WORKBENCH_OLD_REVISION_ID]);
 
+let workbenchScene = makeWorkbenchScene();
+let workbenchRevisionId = WORKBENCH_REVISION_ID;
+let workbenchReviewItems = makeWorkbenchReviewItems(workbenchScene);
+
+export function resetWorkbenchRevisionFixtures(): void {
+  workbenchScene = makeWorkbenchScene();
+  workbenchRevisionId = WORKBENCH_REVISION_ID;
+  workbenchReviewItems = makeWorkbenchReviewItems(workbenchScene);
+}
+
+const TRACE_SVG =
+  '<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 640"><path d="M120 160 L360 160" stroke="#0b5fff" fill="none" stroke-width="2"/></svg>';
+
+function svgExportResponse() {
+  return new HttpResponse(TRACE_SVG, {
+    headers: { 'Content-Type': 'image/svg+xml' },
+  });
+}
+
 export const revisionHandlers = [
   http.get('/api/v1/documents/:documentId', ({ params }) => {
     const documentId = String(params.documentId);
@@ -160,13 +182,44 @@ export const revisionHandlers = [
         makeWorkbenchDocument({ document_id: documentId, current_revision_id: null, latest_job: null }),
       );
     }
-    return HttpResponse.json(makeWorkbenchDocument({ document_id: documentId }));
+    return HttpResponse.json(
+      makeWorkbenchDocument({
+        document_id: documentId,
+        current_revision_id: workbenchRevisionId,
+      }),
+    );
+  }),
+
+  http.get('/api/v1/documents/:documentId/revisions/:revisionId/exports/svg', ({ params }) => {
+    const revisionId = String(params.revisionId);
+    if (!KNOWN_REVISIONS.has(revisionId)) {
+      return notFound('export not found');
+    }
+    return svgExportResponse();
+  }),
+
+  http.get('/api/v1/documents/:documentId/revisions/:revisionId/exports/trace', ({ params }) => {
+    const revisionId = String(params.revisionId);
+    if (!KNOWN_REVISIONS.has(revisionId)) {
+      return notFound('export not found');
+    }
+    return svgExportResponse();
+  }),
+
+  http.get('/api/v1/documents/:documentId/trace', ({ params }) => {
+    if (String(params.documentId) !== WORKBENCH_DOCUMENT_ID) {
+      return notFound('trace export not found');
+    }
+    return svgExportResponse();
   }),
 
   http.get('/api/v1/documents/:documentId/revisions/:revisionId/scene', ({ params }) => {
     const revisionId = String(params.revisionId);
     if (!KNOWN_REVISIONS.has(revisionId)) {
       return notFound('revision not found');
+    }
+    if (revisionId === workbenchRevisionId) {
+      return HttpResponse.json(workbenchScene);
     }
     return HttpResponse.json(makeWorkbenchScene(revisionId));
   }),
@@ -176,6 +229,44 @@ export const revisionHandlers = [
     if (!KNOWN_REVISIONS.has(revisionId)) {
       return notFound('revision not found');
     }
+    if (revisionId === workbenchRevisionId) {
+      return HttpResponse.json({ revision_id: workbenchRevisionId, items: workbenchReviewItems.items });
+    }
     return HttpResponse.json(makeWorkbenchReviewItems(makeWorkbenchScene(revisionId)));
+  }),
+
+  http.post('/api/v1/documents/:documentId/revisions/:revisionId/edits', async ({ request, params }) => {
+    const revisionId = String(params.revisionId);
+    const ifMatch = request.headers.get('If-Match');
+    if (!ifMatch) {
+      return HttpResponse.json({ code: 'precondition_required', message: 'If-Match revision header is required', request_id: 'req-428' }, { status: 428 });
+    }
+    if (ifMatch !== revisionId || revisionId !== workbenchRevisionId) {
+      return HttpResponse.json({ code: 'revision_conflict', message: 'stale', request_id: 'req-409' }, { status: 409 });
+    }
+    const body = (await request.json()) as { commands: Array<Record<string, unknown>> };
+    const nextId = `${workbenchRevisionId}-next`;
+    const nextScene = { ...workbenchScene, revisionId: nextId };
+    for (const command of body.commands) {
+      if (command.type === 'update_annotation_text' && typeof command.objectId === 'string') {
+        nextScene.objects = nextScene.objects.map((object) =>
+          object.id === command.objectId && object.type === 'annotation'
+            ? {
+                ...object,
+                normalizedText: String(command.normalizedText ?? object.normalizedText),
+                interpretation: { ...object.interpretation, state: 'confirmed' },
+              }
+            : object,
+        );
+      }
+    }
+    workbenchScene = nextScene;
+    workbenchRevisionId = nextId;
+    workbenchReviewItems = makeWorkbenchReviewItems(workbenchScene);
+    return HttpResponse.json({
+      revision_id: nextId,
+      review_state: 'review_required',
+      scene_checksum_sha256: 'checksum',
+    });
   }),
 ];

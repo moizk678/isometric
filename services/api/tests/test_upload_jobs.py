@@ -113,6 +113,9 @@ class UploadJobsIntegrationTest(unittest.TestCase):
         self.assertEqual(job_body["review_state"], "review_required")
         self.assertEqual(job_body["progress"]["stage"], "complete")
         self.assertNotIn("percent", job_body["progress"])
+        self.assertGreater(len(job_body["logs"]), 0)
+        log_messages = [entry["message"] for entry in job_body["logs"]]
+        self.assertIn("SVG rendered", log_messages)
         revision_id = job_body["result_revision_id"]
         scene = self.client.get(
             f"/api/v1/documents/{document_id}/revisions/{revision_id}/scene",
@@ -254,6 +257,25 @@ class UploadJobsIntegrationTest(unittest.TestCase):
         items = listed.json()["items"]
         self.assertEqual(len(items), 1)
         self.assertEqual(items[0]["review_state"], "review_required")
+
+    def test_reprocess_enqueues_job(self) -> None:
+        owner = f"reprocess-{uuid.uuid4()}"
+        created = self._upload(owner=owner)
+        document_id = created.json()["document_id"]
+        response = self.client.post(
+            f"/api/v1/documents/{document_id}/reprocess",
+            headers=self._headers(owner),
+        )
+        self.assertEqual(response.status_code, 202)
+        body = response.json()
+        self.assertEqual(body["document_id"], document_id)
+        self.assertEqual(body["status"], "queued")
+        jobs = JobRepository()
+        with self.pool.connection() as conn:
+            job = jobs.get(conn, uuid.UUID(body["job_id"]))
+        self.assertIsNotNone(job)
+        assert job is not None
+        self.assertEqual(job.options_hash, "reprocess")
 
     def test_cancel_on_running_job_with_expired_lease(self) -> None:
         os.environ["SKIP_INLINE_WORKER"] = "1"

@@ -11,6 +11,7 @@ export function makeJobResponse(overrides: Partial<JobResponse> & Pick<JobRespon
     attempt: overrides.attempt ?? 1,
     progress: overrides.progress ?? { stage: overrides.stage ?? 'extract', attempt: overrides.attempt ?? 1 },
     warnings: overrides.warnings ?? [],
+    logs: overrides.logs ?? [],
     review_state: overrides.review_state ?? null,
     error_code: overrides.error_code ?? null,
     result_revision_id: overrides.result_revision_id ?? null,

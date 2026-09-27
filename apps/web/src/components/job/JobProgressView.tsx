@@ -3,7 +3,9 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { cancelJob, isTerminalJobState, jobErrorMessage } from '@/api/jobs';
+import { JobLogPanel } from '@/components/job/JobLogPanel';
 import { useJobPolling } from '@/components/job/useJobPolling';
+import { stageLabel } from '@/components/job/stageLabels';
 import { parseJobState } from '@/components/documents/parseJobState';
 import { parseReviewState } from '@/components/documents/parseReviewState';
 import {
@@ -53,7 +55,8 @@ export function JobProgressView({ jobId }: JobProgressViewProps) {
   const jobState = parseJobState(job.state);
   const reviewState = parseReviewState(job.review_state);
   const terminal = isTerminalJobState(job.state);
-  const stageLabel = job.progress.stage ?? job.stage ?? 'unknown';
+  const stageName = job.progress.stage ?? job.stage ?? 'unknown';
+  const stageDisplay = stageLabel(stageName);
   const attempt = job.progress.attempt ?? job.attempt;
   const failureMessage = job.state === 'failed' ? jobErrorMessage(job.error_code) : null;
 
@@ -91,15 +94,18 @@ export function JobProgressView({ jobId }: JobProgressViewProps) {
         {!terminal ? (
           <>
             <p className="m-0 text-sm leading-5 text-ink-primary">
-              Stage: <span className="break-words">{stageLabel}</span> · Attempt {attempt}
+              Stage: <span className="break-words">{stageDisplay}</span> · Attempt {attempt}
             </p>
             <ProgressBar label="Processing" />
+            <JobLogPanel logs={job.logs} />
           </>
         ) : (
           <p className="m-0 text-sm leading-5 text-ink-secondary">
-            Final stage: <span className="break-words text-ink-primary">{stageLabel}</span> · Attempt {attempt}
+            Final stage: <span className="break-words text-ink-primary">{stageDisplay}</span> · Attempt {attempt}
           </p>
         )}
+
+        {terminal && job.logs.length > 0 ? <JobLogPanel logs={job.logs} /> : null}
 
         {stale && !terminal ? (
           <div

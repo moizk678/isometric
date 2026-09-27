@@ -23,6 +23,11 @@ from isometric_pipeline.profiles.loader import (
     DEFAULT_PIPING_PROFILE_VERSION,
     load_piping_profile,
 )
+from isometric_pipeline.regions.artifact import (
+    PageBBox,
+    RegionCandidate,
+    RegionsMetadata,
+)
 from isometric_pipeline.regions.stage import detect_regions
 from PIL import Image
 
@@ -272,6 +277,7 @@ class CenterlinesAndPrimitivesTest(unittest.TestCase):
             masks_json_uri=f"documents/{doc}/masks.json",
             regions_json_uri=f"documents/{doc}/regions.json",
             centerlines_json_uri=f"documents/{doc}/centerlines.json",
+            protection_png=regions.protection_png,
         )
         fitted = fit_primitives(
             page,
@@ -291,6 +297,88 @@ class CenterlinesAndPrimitivesTest(unittest.TestCase):
             ix, iy = int(mx), int(my)
             if 0 <= iy < protection.shape[0] and 0 <= ix < protection.shape[1]:
                 self.assertEqual(int(protection[iy, ix]), 0)
+
+    def test_full_page_border_box_keeps_stroke_outside_component(self) -> None:
+        height, width = 80, 120
+        border = np.zeros((height, width), dtype=np.uint8)
+        border[:, :4] = 255
+        border[:4, :] = 255
+        stroke = np.zeros((height, width), dtype=np.uint8)
+        cv2.line(stroke, (20, 40), (100, 40), 255, 5)
+        geometry = np.maximum(border, stroke)
+        page = _page_from_mask(geometry)
+        doc = str(uuid.UUID(DOC_ID))
+        regions = RegionsMetadata(
+            page_width_px=width,
+            page_height_px=height,
+            masks_metadata_uri=f"documents/{doc}/masks.json",
+            protection_mask_uri=f"documents/{doc}/masks/protection.png",
+            geometry_ink_mask_uri=f"documents/{doc}/masks/geometry-ink.png",
+            warnings=[],
+            regions=[
+                RegionCandidate(
+                    id="region_0001",
+                    kind="symbol",
+                    bbox=PageBBox(x=0, y=0, width=float(width), height=float(height)),
+                    score=0.5,
+                    crop_uri=f"documents/{doc}/crops/region_0001.png",
+                    evidence="unclassified ink cluster",
+                )
+            ],
+        )
+        extracted = extract_centerlines(
+            page,
+            encode_mask_png(geometry),
+            {},
+            _masks_metadata(doc, width, height),
+            regions,
+            protection_png=encode_mask_png(border),
+            document_id=doc,
+            masks_json_uri=f"documents/{doc}/masks.json",
+            regions_json_uri=f"documents/{doc}/regions.json",
+            centerlines_json_uri=f"documents/{doc}/centerlines.json",
+        )
+        self.assertGreater(len(extracted.metadata.edges), 0)
+        for edge in extracted.metadata.edges:
+            ys = [sample[1] for sample in edge.samples]
+            xs = [sample[0] for sample in edge.samples]
+            self.assertTrue(min(ys) > 8, edge.samples)
+            self.assertTrue(min(xs) > 8, edge.samples)
+
+    def test_two_pixel_strokes_become_long_lines(self) -> None:
+        height, width = 220, 280
+        mask = np.zeros((height, width), dtype=np.uint8)
+        cv2.line(mask, (30, 30), (30, 190), 255, 2)
+        cv2.line(mask, (70, 180), (250, 40), 255, 2)
+        page = _page_from_mask(mask)
+        doc = str(uuid.UUID(DOC_ID))
+        geometry_png = encode_mask_png(mask)
+        extracted = extract_centerlines(
+            page,
+            geometry_png,
+            {},
+            _masks_metadata(doc, width, height),
+            None,
+            document_id=doc,
+            masks_json_uri=f"documents/{doc}/masks.json",
+            regions_json_uri=None,
+            centerlines_json_uri=f"documents/{doc}/centerlines.json",
+        )
+        fitted = fit_primitives(
+            page,
+            extracted.metadata,
+            {"geometry": geometry_png},
+            centerlines_json_uri=f"documents/{doc}/centerlines.json",
+            masks_json_uri=f"documents/{doc}/masks.json",
+            regions_json_uri=None,
+            primitives_json_uri=f"documents/{doc}/primitives.json",
+        )
+        lengths = [
+            math.hypot(prim.end.x - prim.start.x, prim.end.y - prim.start.y)
+            for prim in fitted.metadata.primitives
+            if prim.status == "accepted"
+        ]
+        self.assertGreaterEqual(sum(length >= 40.0 for length in lengths), 2)
 
 
 if __name__ == "__main__":

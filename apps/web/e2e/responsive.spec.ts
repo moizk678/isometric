@@ -76,9 +76,9 @@ const screens: Screen[] = [
     },
     primaryActions: (page) =>
       (page.viewportSize()?.width ?? 0) < NARROW_WORKBENCH_VIEWPORT_PX
-        ? [page.getByRole('tablist', { name: 'Canvas' }), page.getByRole('link', { name: 'Download SVG' })]
-        : [page.getByRole('link', { name: 'Download SVG' })],
-    focusTarget: (page) => page.getByRole('link', { name: 'Download SVG' }),
+        ? [page.getByRole('tablist', { name: 'Canvas' }), page.getByRole('link', { name: /Download .*SVG/ })]
+        : [page.getByRole('link', { name: /Download .*SVG/ })],
+    focusTarget: (page) => page.getByRole('link', { name: /Download .*SVG/ }),
   },
 ];
 

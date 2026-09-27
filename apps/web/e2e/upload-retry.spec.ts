@@ -67,7 +67,6 @@ for (const failure of failures) {
     expect(await (await retryRequest).headerValue('idempotency-key')).toBe(failedKeys[0]);
     expect((await retryResponse).status()).toBe(202);
 
-    await page.waitForURL(/\/jobs\/[0-9a-f-]{36}$/);
-    await expect(page.getByText('Succeeded', { exact: true })).toBeVisible({ timeout: 60_000 });
+    await expect(page.getByTestId('upload-open-document')).toBeVisible({ timeout: 60_000 });
   });
 }

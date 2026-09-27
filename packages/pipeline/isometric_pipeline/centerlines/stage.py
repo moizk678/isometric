@@ -18,7 +18,7 @@ from isometric_pipeline.centerlines.diagnostics import centerlines_overlay_png
 from isometric_pipeline.centerlines.graph import extract_layer_graph
 from isometric_pipeline.centerlines.skeleton import clean_mask, prune_spurs, skeletonize
 from isometric_pipeline.centerlines.util import (
-    apply_protection_boxes,
+    apply_protection_mask,
     crop_from_bbox,
     decode_mask_png,
 )
@@ -58,14 +58,21 @@ def extract_centerlines(
     masks_json_uri: str,
     regions_json_uri: str | None,
     centerlines_json_uri: str,
+    protection_png: bytes | None = None,
     profile_version: str = DEFAULT_PIPING_PROFILE_VERSION,
 ) -> ExtractCenterlinesResult:
     profile = load_piping_profile(profile_version)
     geo = profile.geometry
     rgb = decode_page_rgb(page_png)
     height, width = rgb.shape[:2]
+    # Region boxes can cover the page. Subtract only protection-component pixels.
+    protection = (
+        decode_mask_png(protection_png, height, width)
+        if protection_png is not None
+        else None
+    )
     geometry_mask = decode_mask_png(geometry_ink_png, height, width)
-    geometry_mask = apply_protection_boxes(geometry_mask, regions_metadata)
+    geometry_mask = apply_protection_mask(geometry_mask, protection)
 
     color_union = np.zeros((height, width), dtype=np.uint8)
     layer_masks: list[tuple[str, str, np.ndarray]] = []
@@ -73,7 +80,7 @@ def extract_centerlines(
         if layer.layer_id not in color_layer_masks:
             continue
         layer_mask = decode_mask_png(color_layer_masks[layer.layer_id], height, width)
-        layer_mask = apply_protection_boxes(layer_mask, regions_metadata)
+        layer_mask = apply_protection_mask(layer_mask, protection)
         color_union = np.maximum(color_union, layer_mask)
         layer_masks.append((layer.layer_id, layer.mask_uri, layer_mask))
 

@@ -216,6 +216,22 @@ class TopologyTest(unittest.TestCase):
         self.assertIn("tee", kinds)
         self.assertGreaterEqual(len(meta.edges), 2)
 
+    def test_edge_endpoints_match_clustered_node_positions(self) -> None:
+        prims = [
+            _line_primitive("stem_top", 128, 40, 128, 127),
+            _line_primitive("stem_bottom", 128, 129, 128, 216),
+            _line_primitive("branch", 129, 128, 220, 128),
+        ]
+        meta = _run_infer(prims)
+        nodes_by_id = {node.id: node for node in meta.nodes}
+        for edge in meta.edges:
+            start = nodes_by_id[edge.start_node_id].position
+            end = nodes_by_id[edge.end_node_id].position
+            self.assertAlmostEqual(edge.start.x, start.x, places=6)
+            self.assertAlmostEqual(edge.start.y, start.y, places=6)
+            self.assertAlmostEqual(edge.end.x, end.x, places=6)
+            self.assertAlmostEqual(edge.end.y, end.y, places=6)
+
     def test_elbow_corner(self) -> None:
         prims = [
             _line_primitive("a", 60, 180, 60, 100),

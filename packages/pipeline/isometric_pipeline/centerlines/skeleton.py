@@ -20,21 +20,53 @@ def clean_mask(mask: np.ndarray, profile: GeometryProfile) -> np.ndarray:
 
 
 def skeletonize(mask: np.ndarray) -> np.ndarray:
-    binary = (mask > 0).astype(np.uint8)
-    if not np.any(binary):
-        return np.zeros_like(binary, dtype=np.uint8)
-    skel = np.zeros(binary.shape, np.uint8)
-    element = cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 3))
-    working = binary.copy()
+    """Thin ink to a 1-pixel centerline.
+
+    A cross-shaped morphological skeleton leaves a 2-pixel diagonal as a braid,
+    and the centerline graph then splits that braid into 1-pixel edges.
+    Guo-Hall thinning reduces those ribbons to a single path.
+    """
+    img = (mask > 0).astype(np.uint8)
+    if not np.any(img):
+        return np.zeros(mask.shape, dtype=np.uint8)
     while True:
-        eroded = cv2.erode(working, element)
-        dilated = cv2.dilate(eroded, element)
-        diff = cv2.subtract(working, dilated)
-        skel = cv2.bitwise_or(skel, diff)
-        working = eroded
-        if cv2.countNonZero(working) == 0:
+        changed = False
+        for phase in (0, 1):
+            padded = np.pad(img, 1, mode="constant")
+            p2 = padded[:-2, 1:-1]
+            p3 = padded[:-2, 2:]
+            p4 = padded[1:-1, 2:]
+            p5 = padded[2:, 2:]
+            p6 = padded[2:, 1:-1]
+            p7 = padded[2:, :-2]
+            p8 = padded[1:-1, :-2]
+            p9 = padded[:-2, :-2]
+            connected = (
+                ((1 - p2) & (p3 | p4))
+                + ((1 - p4) & (p5 | p6))
+                + ((1 - p6) & (p7 | p8))
+                + ((1 - p8) & (p9 | p2))
+            )
+            north = (p9 | p2) + (p3 | p4) + (p5 | p6) + (p7 | p8)
+            south = (p2 | p3) + (p4 | p5) + (p6 | p7) + (p8 | p9)
+            neighbor_count = np.minimum(north, south)
+            if phase == 0:
+                marker = (p6 | p7 | (1 - p9)) & p8
+            else:
+                marker = (p2 | p3 | (1 - p5)) & p4
+            remove = (
+                (img == 1)
+                & (connected == 1)
+                & (neighbor_count >= 2)
+                & (neighbor_count <= 3)
+                & (marker == 0)
+            )
+            if np.any(remove):
+                changed = True
+                img[remove] = 0
+        if not changed:
             break
-    return skel * 255
+    return img * 255
 
 
 def prune_spurs(skeleton: np.ndarray, max_spur_length: int) -> np.ndarray:

@@ -26,6 +26,13 @@ class OcrProfile:
 
 
 @dataclass(frozen=True)
+class AssemblyProfile:
+    min_symbol_combined_score: float
+    min_text_confidence: float
+    default_layer_name: str
+
+
+@dataclass(frozen=True)
 class AssociationsProfile:
     max_witness_text_distance_px: float
     min_witness_length_px: float
@@ -84,6 +91,17 @@ class SnappingProfile:
 
 
 @dataclass(frozen=True)
+class TraceProfile:
+    stroke_width_px: float
+    simplify_epsilon_px: float
+    min_polyline_length_px: float
+    min_blob_area_px: int
+    morph_open_kernel_px: int
+    include_unclassified: bool
+    max_paths_per_layer: int
+
+
+@dataclass(frozen=True)
 class GeometryProfile:
     min_component_pixels: int
     max_spur_length_px: int
@@ -102,11 +120,13 @@ class GeometryProfile:
 class PipingIsometricProfile:
     version: str
     geometry: GeometryProfile
+    trace: TraceProfile
     snapping: SnappingProfile
     topology: TopologyProfile
     ocr: OcrProfile
     symbols: SymbolsProfile
     associations: AssociationsProfile
+    assembly: AssemblyProfile
 
 
 def _ocr_from_mapping(data: dict[str, object]) -> OcrProfile:
@@ -127,6 +147,14 @@ def _ocr_from_mapping(data: dict[str, object]) -> OcrProfile:
         context_radius_px=float(data["context_radius_px"]),
         vocabulary_terms=tuple(str(t) for t in terms_raw),
         abbreviations=MappingProxyType({str(k): str(v) for k, v in abbrev_raw.items()}),
+    )
+
+
+def _assembly_from_mapping(data: dict[str, object]) -> AssemblyProfile:
+    return AssemblyProfile(
+        min_symbol_combined_score=float(data["min_symbol_combined_score"]),
+        min_text_confidence=float(data["min_text_confidence"]),
+        default_layer_name=str(data["default_layer_name"]),
     )
 
 
@@ -199,6 +227,18 @@ def _snapping_from_mapping(data: dict[str, object]) -> SnappingProfile:
     )
 
 
+def _trace_from_mapping(data: dict[str, object]) -> TraceProfile:
+    return TraceProfile(
+        stroke_width_px=float(data["stroke_width_px"]),
+        simplify_epsilon_px=float(data["simplify_epsilon_px"]),
+        min_polyline_length_px=float(data["min_polyline_length_px"]),
+        min_blob_area_px=int(data["min_blob_area_px"]),
+        morph_open_kernel_px=int(data["morph_open_kernel_px"]),
+        include_unclassified=bool(data["include_unclassified"]),
+        max_paths_per_layer=int(data.get("max_paths_per_layer", 50_000)),
+    )
+
+
 def _geometry_from_mapping(data: dict[str, object]) -> GeometryProfile:
     return GeometryProfile(
         min_component_pixels=int(data["min_component_pixels"]),
@@ -225,6 +265,9 @@ def _load_yaml_profile(path: Path) -> PipingIsometricProfile:
     geometry_raw = raw.get("geometry")
     if not isinstance(geometry_raw, dict):
         raise ValueError(f"profile geometry section missing: {path}")
+    trace_raw = raw.get("trace")
+    if not isinstance(trace_raw, dict):
+        raise ValueError(f"profile trace section missing: {path}")
     snapping_raw = raw.get("snapping")
     if not isinstance(snapping_raw, dict):
         raise ValueError(f"profile snapping section missing: {path}")
@@ -240,14 +283,19 @@ def _load_yaml_profile(path: Path) -> PipingIsometricProfile:
     associations_raw = raw.get("associations")
     if not isinstance(associations_raw, dict):
         raise ValueError(f"profile associations section missing: {path}")
+    assembly_raw = raw.get("assembly")
+    if not isinstance(assembly_raw, dict):
+        raise ValueError(f"profile assembly section missing: {path}")
     return PipingIsometricProfile(
         version=version,
         geometry=_geometry_from_mapping(geometry_raw),
+        trace=_trace_from_mapping(trace_raw),
         snapping=_snapping_from_mapping(snapping_raw),
         topology=_topology_from_mapping(topology_raw),
         ocr=_ocr_from_mapping(ocr_raw),
         symbols=_symbols_from_mapping(symbols_raw),
         associations=_associations_from_mapping(associations_raw),
+        assembly=_assembly_from_mapping(assembly_raw),
     )
 
 
@@ -267,7 +315,19 @@ def load_piping_profile(version: str) -> PipingIsometricProfile:
         raise RuntimeError(
             f"no piping profiles found under {_PROFILES_DIR}; expected piping_isometric@*.yaml"
         )
-    profile = _PROFILES.get(version)
+    resolved = resolve_piping_profile_version(version)
+    profile = _PROFILES.get(resolved)
     if profile is None:
         raise KeyError(f"unsupported piping profile version: {version}")
     return profile
+
+
+def resolve_piping_profile_version(profile_id: str) -> str:
+    """Map API ``profile_id`` (e.g. ``piping_isometric``) to a loaded profile version."""
+    if profile_id in _PROFILES:
+        return profile_id
+    if "@" not in profile_id:
+        versioned = f"{profile_id}@1.0.0"
+        if versioned in _PROFILES:
+            return versioned
+    raise KeyError(f"unsupported piping profile version: {profile_id}")

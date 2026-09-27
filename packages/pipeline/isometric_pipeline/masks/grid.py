@@ -11,6 +11,7 @@ GRID_CONFIDENCE_MIN = 0.35
 FAINT_LINE_LOW = 5.0
 FAINT_LINE_HIGH = 55.0
 DARK_LINE_MAX = 80.0
+COLOR_SAT_MIN = 28.0
 
 
 def estimate_grid(
@@ -64,6 +65,9 @@ def estimate_grid(
     if confidence < GRID_CONFIDENCE_MIN:
         return np.zeros_like(gray, dtype=np.uint8), confidence, paper
 
+    hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)
+    colored = hsv[:, :, 1].astype(np.float32) >= COLOR_SAT_MIN
     grid_mask = grid_raw.copy()
     grid_mask[strong_ink] = 0
+    grid_mask[colored] = 0
     return grid_mask, confidence, paper

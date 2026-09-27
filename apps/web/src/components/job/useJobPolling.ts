@@ -4,8 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError } from '@/api/http';
 import { getJob, isTerminalJobState, type JobResponse } from '@/api/jobs';
 
-const INITIAL_POLL_MS = 1000;
-const MAX_POLL_MS = 5000;
+const POLL_MS = 750;
 const STALE_THRESHOLD_MS = 30_000;
 
 export type JobPollingState = {
@@ -31,12 +30,11 @@ function computeStale(job: JobResponse, unchangedSince: number | null): boolean 
   return Date.now() - unchangedSince >= STALE_THRESHOLD_MS;
 }
 
-export function useJobPolling(jobId: string): JobPollingState {
+export function useJobPolling(jobId: string | null): JobPollingState {
   const [job, setJob] = useState<JobResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<ApiError | null>(null);
   const [stale, setStale] = useState(false);
-  const pollDelayRef = useRef(INITIAL_POLL_MS);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastUpdatedAtRef = useRef<string | null>(null);
   const unchangedSinceRef = useRef<number | null>(null);
@@ -62,6 +60,10 @@ export function useJobPolling(jobId: string): JobPollingState {
   }, []);
 
   const fetchJob = useCallback(async (): Promise<JobResponse | ApiError> => {
+    if (!jobId) {
+      setLoading(false);
+      return new ApiError(0, 'no_job', 'No job id', null);
+    }
     try {
       const next = await getJob(jobId);
       setError(null);
@@ -83,15 +85,20 @@ export function useJobPolling(jobId: string): JobPollingState {
   }, [fetchJob]);
 
   useEffect(() => {
+    if (!jobId) {
+      setLoading(false);
+      return undefined;
+    }
+
     let cancelled = false;
 
-    const schedule = (delay: number) => {
+    const schedule = () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
       timeoutRef.current = setTimeout(() => {
         void tick();
-      }, delay);
+      }, POLL_MS);
     };
 
     const tick = async () => {
@@ -105,13 +112,12 @@ export function useJobPolling(jobId: string): JobPollingState {
       if (next instanceof ApiError ? !isTransientError(next) : isTerminalJobState(next.state)) {
         return;
       }
-      pollDelayRef.current = Math.min(pollDelayRef.current * 1.5, MAX_POLL_MS);
-      schedule(pollDelayRef.current);
+      schedule();
     };
 
-    pollDelayRef.current = INITIAL_POLL_MS;
     lastUpdatedAtRef.current = null;
     unchangedSinceRef.current = null;
+    setLoading(true);
     void tick();
 
     return () => {

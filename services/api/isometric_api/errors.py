@@ -17,6 +17,7 @@ _ERROR_DESCRIPTIONS = {
     404: "Not found",
     405: "Method not allowed",
     409: "Conflict",
+    428: "Precondition required",
     413: "Payload too large",
     415: "Unsupported media type",
     500: "Internal server error",

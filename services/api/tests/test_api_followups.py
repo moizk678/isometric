@@ -15,13 +15,16 @@ from fastapi.testclient import TestClient
 from isometric_api.app import create_app
 from isometric_persistence.config import DatabaseSettings, resolve_database_url
 from isometric_persistence.db import DatabasePool
+from isometric_persistence.errors import PersistenceError
 from isometric_persistence.keys import (
     document_display_key,
     document_masks_metadata_key,
     document_normalize_metadata_key,
+    document_page_key,
     document_regions_metadata_key,
 )
 from isometric_persistence.migrate import apply_migrations
+from isometric_persistence.repositories.jobs import JobRepository
 from isometric_worker.processor import process_job
 from PIL import Image
 
@@ -75,6 +78,27 @@ class ApiFollowupsTest(unittest.TestCase):
     def _headers(self, owner: str = "w1a-owner") -> dict[str, str]:
         return {"X-Owner-Id": owner}
 
+    def _process_upload_jobs(self, response) -> None:
+        if response.status_code != 202:
+            return
+        body = response.json()
+        job_id = body.get("job_id")
+        document_id = body.get("document_id")
+        store = self.client.app.state.runtime.store
+        if job_id:
+            process_job(self.pool, store, uuid.UUID(job_id))
+        if document_id:
+            page_key = document_page_key(uuid.UUID(document_id))
+            try:
+                store.read(page_key)
+            except (FileNotFoundError, PersistenceError):
+                return
+            jobs = JobRepository()
+            with self.pool.connection() as conn:
+                reading = jobs.get_newest_reading_job(conn, uuid.UUID(document_id))
+            if reading is not None and reading.state in {"queued", "running"}:
+                process_job(self.pool, store, reading.id)
+
     def _upload(
         self,
         *,
@@ -94,14 +118,8 @@ class ApiFollowupsTest(unittest.TestCase):
             data={"profile_id": "piping_isometric", "options_json": "{}"},
             headers=headers,
         )
-        if run_worker and response.status_code == 202:
-            job_id = response.json().get("job_id")
-            if job_id:
-                process_job(
-                    self.pool,
-                    self.client.app.state.runtime.store,
-                    uuid.UUID(job_id),
-                )
+        if run_worker:
+            self._process_upload_jobs(response)
         return response
 
     def _post_upload(
@@ -118,14 +136,8 @@ class ApiFollowupsTest(unittest.TestCase):
             data=data,
             headers=self._headers(owner),
         )
-        if run_worker and response.status_code == 202:
-            job_id = response.json().get("job_id")
-            if job_id:
-                process_job(
-                    self.pool,
-                    self.client.app.state.runtime.store,
-                    uuid.UUID(job_id),
-                )
+        if run_worker:
+            self._process_upload_jobs(response)
         return response
 
     def test_filename_and_profile_round_trip(self) -> None:

@@ -48,6 +48,33 @@ describe('UploadZone', () => {
           { status: 202 },
         );
       }),
+      http.get('/api/v1/jobs/job-new', () =>
+        HttpResponse.json({
+          job_id: 'job-new',
+          document_id: 'doc-new',
+          state: 'succeeded',
+          stage: 'complete',
+          attempt: 1,
+          progress: { stage: 'complete', attempt: 1 },
+          warnings: [],
+          logs: [
+            {
+              id: 'log-1',
+              created_at: new Date().toISOString(),
+              level: 'info',
+              stage: 'fixture_process',
+              message: 'SVG rendered',
+              detail: { byte_size: 1200 },
+            },
+          ],
+          review_state: 'review_required',
+          error_code: null,
+          result_revision_id: 'rev-new',
+          cancel_requested: false,
+          updated_at: new Date().toISOString(),
+          review_item_count: 0,
+        }),
+      ),
     );
 
     const user = userEvent.setup();
@@ -68,8 +95,10 @@ describe('UploadZone', () => {
 
     await user.click(screen.getByTestId('upload-retry-button'));
     await waitFor(() => {
-      expect(push).toHaveBeenCalledWith('/jobs/job-new');
+      expect(screen.getByTestId('upload-open-document')).toBeTruthy();
     });
+    expect(screen.getByText('SVG rendered')).toBeTruthy();
+    expect(push).not.toHaveBeenCalled();
     expect(postAttempts).toBe(2);
   });
 });

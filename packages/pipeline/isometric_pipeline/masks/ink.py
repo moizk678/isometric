@@ -5,11 +5,10 @@ from __future__ import annotations
 import cv2
 import numpy as np
 
-from isometric_pipeline.masks.grid import GRID_CONFIDENCE_MIN
+from isometric_pipeline.masks.grid import COLOR_SAT_MIN, GRID_CONFIDENCE_MIN
 from isometric_pipeline.masks.util import paper_lightness_estimate
 
 INK_THRESHOLD = 14.0
-COLOR_SAT_MIN = 28.0
 
 
 def estimate_retained_ink(

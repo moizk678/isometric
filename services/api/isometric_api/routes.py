@@ -8,28 +8,49 @@ import os
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, File, Form, Header, Query, Request, UploadFile
+from fastapi import APIRouter, BackgroundTasks, File, Form, Header, Query, Request, UploadFile
 from fastapi.responses import Response
 from isometric_persistence.errors import PersistenceError
-from isometric_persistence.keys import document_display_key, document_original_key
+from isometric_persistence.keys import (
+    document_display_key,
+    document_original_key,
+)
 from isometric_persistence.repositories.documents import DocumentRepository
-from isometric_persistence.repositories.jobs import JobRepository
+from isometric_persistence.repositories.jobs import (
+    JOB_KIND_DRAWING_READING,
+    JobRepository,
+)
 from isometric_persistence.repositories.revisions import RevisionRepository
 from isometric_worker.dispatcher import dispatch_outbox
 from isometric_worker.runner import run_once
+from isometric_worker.trace_svg import read_or_build_document_trace
 from PIL import Image, ImageOps
 from psycopg.errors import UniqueViolation
 
 from .deps import AppState, get_owner_id, get_state
+from .drawing_reading import build_drawing_reading_response
 from .errors import ApiError, error_responses
+from .human_revision import parse_if_match
+from .revision_edits import (
+    adopt_candidate_revision,
+    apply_revision_edits,
+    resolve_review_item,
+)
 from .schemas import (
+    AdoptCandidateRequest,
+    AdoptCandidateResponse,
     DocumentCreateResponse,
     DocumentDetailResponse,
     DocumentListResponse,
+    DrawingReadingResponse,
     JobCancelResponse,
     JobResponse,
+    ReprocessResponse,
+    ResolveReviewItemRequest,
     ReviewItemListResponse,
+    RevisionEditsRequest,
     RevisionListResponse,
+    RevisionMutationResponse,
 )
 from .upload import sanitize_original_filename, validate_upload
 
@@ -40,12 +61,16 @@ _SVG_EXPORT_CSP = "default-src 'none'; style-src 'unsafe-inline'"
 _PNG_MODES = frozenset({"1", "L", "LA", "I", "I;16", "P", "RGB", "RGBA"})
 
 
-def _maybe_run_worker(request: Request) -> None:
+def _run_worker_sync(pool: Any, store: Any, queue: Any) -> None:
+    dispatch_outbox(pool, queue)
+    run_once(pool, store, queue)
+
+
+def _schedule_worker(request: Request, background_tasks: BackgroundTasks) -> None:
     if os.environ.get("SKIP_INLINE_WORKER") == "1":
         return
     state = get_state(request)
-    dispatch_outbox(state.pool, state.queue)
-    run_once(state.pool, state.store, state.queue)
+    background_tasks.add_task(_run_worker_sync, state.pool, state.store, state.queue)
 
 
 def _ensure_owner(doc_owner: str, caller: str) -> None:
@@ -87,6 +112,32 @@ def _document_json_fields(doc: Any) -> dict[str, Any]:
     }
 
 
+def _enqueue_drawing_reading_job(
+    jobs: JobRepository,
+    conn: Any,
+    *,
+    document_id: uuid.UUID,
+    input_hash: str,
+    options_hash: str,
+    pipeline_version: str,
+    profile_version: str,
+) -> uuid.UUID:
+    reading_job_id = uuid.uuid4()
+    jobs.create_with_outbox(
+        conn,
+        job_id=reading_job_id,
+        document_id=document_id,
+        state="queued",
+        input_hash=input_hash,
+        options_hash=options_hash,
+        pipeline_version=pipeline_version,
+        profile_version=profile_version,
+        event_key=f"job.created.{reading_job_id}",
+        kind=JOB_KIND_DRAWING_READING,
+    )
+    return reading_job_id
+
+
 def _idempotent_upload_response(
     conn: Any,
     *,
@@ -121,6 +172,28 @@ def _job_updated_at_iso(job: Any) -> str | None:
     return str(updated)
 
 
+def _timestamp_iso(value: object | None) -> str:
+    if value is None:
+        return ""
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return str(value)
+
+
+def _job_logs_json(jobs: JobRepository, conn: Any, job_id: uuid.UUID) -> list[dict[str, Any]]:
+    return [
+        {
+            "id": str(row.id),
+            "created_at": _timestamp_iso(row.created_at),
+            "level": row.level,
+            "stage": row.stage,
+            "message": row.message,
+            "detail": row.detail,
+        }
+        for row in jobs.list_job_logs(conn, job_id)
+    ]
+
+
 @router.post(
     "/documents",
     status_code=202,
@@ -129,6 +202,7 @@ def _job_updated_at_iso(job: Any) -> str | None:
 )
 async def create_document(
     request: Request,
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),  # noqa: B008
     profile_id: str = Form(default="piping_isometric"),
     options_json: str = Form(default="{}"),
@@ -175,7 +249,7 @@ async def create_document(
                     validated=validated,
                 )
                 conn.commit()
-                _maybe_run_worker(request)
+                _schedule_worker(request, background_tasks)
                 return payload
 
         document_id = uuid.uuid4()
@@ -208,6 +282,15 @@ async def create_document(
                 profile_version=profile_id,
                 event_key=f"job.created.{job_id}",
             )
+            _enqueue_drawing_reading_job(
+                jobs,
+                conn,
+                document_id=document_id,
+                input_hash=validated.source_hash,
+                options_hash=validated.options_hash,
+                pipeline_version=state.settings.pipeline_version,
+                profile_version=profile_id,
+            )
         except UniqueViolation:
             conn.rollback()
             if not idempotency_key:
@@ -225,11 +308,11 @@ async def create_document(
                 validated=validated,
             )
             conn.commit()
-            _maybe_run_worker(request)
+            _schedule_worker(request, background_tasks)
             return payload
         conn.commit()
 
-    _maybe_run_worker(request)
+    _schedule_worker(request, background_tasks)
     return {"document_id": str(document_id), "job_id": str(job_id), "status": "queued"}
 
 
@@ -316,6 +399,82 @@ def get_document(request: Request, document_id: uuid.UUID) -> dict[str, Any]:
     }
 
 
+@router.post(
+    "/documents/{document_id}/reprocess",
+    response_model=ReprocessResponse,
+    status_code=202,
+    responses=_OWNED,
+)
+def reprocess_document(
+    request: Request,
+    background_tasks: BackgroundTasks,
+    document_id: uuid.UUID,
+) -> dict[str, Any]:
+    owner_id = get_owner_id(request)
+    state = get_state(request)
+    docs = DocumentRepository()
+    jobs = JobRepository()
+    with state.pool.connection() as conn:
+        doc = docs.get(conn, document_id)
+        if doc is None:
+            raise ApiError(404, "not_found", "document not found")
+        _ensure_owner(doc.owner_id, owner_id)
+        profile_id = doc.profile_id or state.settings.profile_id
+        job_id = uuid.uuid4()
+        jobs.create_with_outbox(
+            conn,
+            job_id=job_id,
+            document_id=document_id,
+            state="queued",
+            input_hash=doc.source_hash,
+            options_hash="reprocess",
+            pipeline_version=state.settings.pipeline_version,
+            profile_version=profile_id,
+            event_key=f"job.reprocess.{job_id}",
+            event_type="job.reprocess",
+        )
+        _enqueue_drawing_reading_job(
+            jobs,
+            conn,
+            document_id=document_id,
+            input_hash=doc.source_hash,
+            options_hash="reprocess",
+            pipeline_version=state.settings.pipeline_version,
+            profile_version=profile_id,
+        )
+        conn.commit()
+    _schedule_worker(request, background_tasks)
+    return {
+        "document_id": str(document_id),
+        "job_id": str(job_id),
+        "status": "queued",
+    }
+
+
+@router.get(
+    "/documents/{document_id}/drawing-reading",
+    response_model=DrawingReadingResponse,
+    responses=_OWNED,
+)
+def get_document_drawing_reading(
+    request: Request, document_id: uuid.UUID
+) -> dict[str, Any]:
+    owner_id = get_owner_id(request)
+    state = get_state(request)
+    docs = DocumentRepository()
+    jobs = JobRepository()
+    with state.pool.connection() as conn:
+        doc = docs.get(conn, document_id)
+        if doc is None:
+            raise ApiError(404, "not_found", "document not found")
+        _ensure_owner(doc.owner_id, owner_id)
+        reading_job = jobs.get_newest_reading_job(conn, document_id)
+    return build_drawing_reading_response(
+        reading_job=reading_job,
+        store=state.store,
+    )
+
+
 @router.get("/documents/{document_id}/source", responses=_OWNED)
 def get_document_source(request: Request, document_id: uuid.UUID) -> Response:
     owner_id = get_owner_id(request)
@@ -359,6 +518,34 @@ def get_document_display(request: Request, document_id: uuid.UUID) -> Response:
         out = io.BytesIO()
         transposed.save(out, format="PNG")
     return Response(content=out.getvalue(), media_type="image/png")
+
+
+def _svg_export_response(data: bytes) -> Response:
+    return Response(
+        content=data,
+        media_type="image/svg+xml",
+        headers={
+            "Content-Security-Policy": _SVG_EXPORT_CSP,
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
+@router.get("/documents/{document_id}/trace", responses=_OWNED)
+def get_document_trace(request: Request, document_id: uuid.UUID) -> Response:
+    owner_id = get_owner_id(request)
+    state = get_state(request)
+    docs = DocumentRepository()
+    with state.pool.connection() as conn:
+        doc = docs.get(conn, document_id)
+        if doc is None:
+            raise ApiError(404, "not_found", "document not found")
+        _ensure_owner(doc.owner_id, owner_id)
+        profile_id = doc.profile_id
+    data = read_or_build_document_trace(state.store, document_id, profile_id)
+    if not data:
+        raise ApiError(404, "not_found", "trace export not found")
+    return _svg_export_response(data)
 
 
 @router.get(
@@ -445,13 +632,130 @@ def get_review_items(
                 "id": str(item["id"]),
                 "issue_key": item["issue_key"],
                 "object_id": item["object_id"],
+                "relationship_id": item.get("relationship_id"),
                 "issue_type": item["issue_type"],
                 "severity": item["severity"],
+                "crop_uri": item.get("crop_uri"),
+                "proposed_options": item.get("proposed_options") or [],
                 "state": item["state"],
             }
             for item in items
         ],
     }
+
+
+@router.post(
+    "/documents/{document_id}/revisions/{revision_id}/edits",
+    response_model=RevisionMutationResponse,
+    responses=error_responses(409, 428) | _OWNED,
+)
+def post_revision_edits(
+    request: Request,
+    document_id: uuid.UUID,
+    revision_id: uuid.UUID,
+    body: RevisionEditsRequest,
+    if_match: str | None = Header(default=None, alias="If-Match"),
+) -> dict[str, str]:
+    parse_if_match(if_match, revision_id)
+    owner_id = get_owner_id(request)
+    state = get_state(request)
+    docs = DocumentRepository()
+    with state.pool.connection() as conn:
+        doc = docs.get(conn, document_id)
+        if doc is None:
+            raise ApiError(404, "not_found", "document not found")
+        _ensure_owner(doc.owner_id, owner_id)
+        if doc.current_revision_id != revision_id:
+            raise ApiError(
+                409,
+                "revision_conflict",
+                "edits must apply to the document current revision",
+            )
+        return apply_revision_edits(
+            conn,
+            state.store,
+            document_id=document_id,
+            revision_id=revision_id,
+            commands_raw=body.commands,
+            actor_id=owner_id,
+        )
+
+
+@router.post(
+    "/documents/{document_id}/revisions/{revision_id}/review-items/{item_id}/resolve",
+    response_model=RevisionMutationResponse,
+    responses=error_responses(409, 428) | _OWNED,
+)
+def post_resolve_review_item(
+    request: Request,
+    document_id: uuid.UUID,
+    revision_id: uuid.UUID,
+    item_id: uuid.UUID,
+    body: ResolveReviewItemRequest,
+    if_match: str | None = Header(default=None, alias="If-Match"),
+) -> dict[str, str]:
+    parse_if_match(if_match, revision_id)
+    owner_id = get_owner_id(request)
+    state = get_state(request)
+    docs = DocumentRepository()
+    with state.pool.connection() as conn:
+        doc = docs.get(conn, document_id)
+        if doc is None:
+            raise ApiError(404, "not_found", "document not found")
+        _ensure_owner(doc.owner_id, owner_id)
+        if doc.current_revision_id != revision_id:
+            raise ApiError(
+                409,
+                "revision_conflict",
+                "resolve must apply to the document current revision",
+            )
+        correction = (
+            body.correction.commands if body.correction is not None else None
+        )
+        if body.action not in ("confirm", "correct", "acknowledge_unknown"):
+            raise ApiError(400, "invalid_request", "invalid resolve action")
+        return resolve_review_item(
+            conn,
+            state.store,
+            document_id=document_id,
+            revision_id=revision_id,
+            item_id=item_id,
+            action=body.action,
+            correction_commands=correction,
+            actor_id=owner_id,
+        )
+
+
+@router.post(
+    "/documents/{document_id}/revisions/{revision_id}/adopt",
+    response_model=AdoptCandidateResponse,
+    responses=error_responses(409, 428) | _OWNED,
+)
+def post_adopt_candidate(
+    request: Request,
+    document_id: uuid.UUID,
+    revision_id: uuid.UUID,
+    body: AdoptCandidateRequest,
+    if_match: str | None = Header(default=None, alias="If-Match"),
+) -> dict[str, Any]:
+    parse_if_match(if_match, revision_id)
+    owner_id = get_owner_id(request)
+    state = get_state(request)
+    docs = DocumentRepository()
+    with state.pool.connection() as conn:
+        doc = docs.get(conn, document_id)
+        if doc is None:
+            raise ApiError(404, "not_found", "document not found")
+        _ensure_owner(doc.owner_id, owner_id)
+        candidate_id = uuid.UUID(body.candidate_revision_id)
+        return adopt_candidate_revision(
+            conn,
+            state.store,
+            document_id=document_id,
+            current_revision_id=revision_id,
+            candidate_revision_id=candidate_id,
+            actor_id=owner_id,
+        )
 
 
 @router.get(
@@ -474,19 +778,16 @@ def get_export(
         if rev is None or rev.document_id != document_id:
             raise ApiError(404, "not_found", "revision not found")
         export = revs.get_export(conn, revision_id, kind)
-        if export is None:
-            raise ApiError(404, "not_found", "export not found")
+        profile_id = doc.profile_id
+    if export is None and kind == "trace":
+        data = read_or_build_document_trace(state.store, document_id, profile_id)
+        if data:
+            return _svg_export_response(data)
+    if export is None:
+        raise ApiError(404, "not_found", "export not found")
     data = _read_artifact(state, export["uri"])
-    if kind == "svg":
-        # The web proxy serves this same-origin; opened directly, it must not run script.
-        return Response(
-            content=data,
-            media_type="image/svg+xml",
-            headers={
-                "Content-Security-Policy": _SVG_EXPORT_CSP,
-                "X-Content-Type-Options": "nosniff",
-            },
-        )
+    if kind in {"svg", "trace"}:
+        return _svg_export_response(data)
     return Response(content=data, media_type="image/png")
 
 
@@ -506,6 +807,7 @@ def get_job(request: Request, job_id: uuid.UUID) -> dict[str, Any]:
             raise ApiError(404, "not_found", "document not found")
         _ensure_owner(doc.owner_id, owner_id)
         warnings = jobs.get_latest_stage_warnings(conn, job_id)
+        logs = _job_logs_json(jobs, conn, job_id)
         review_state = _review_state_for_revision(conn, revs, job.result_revision_id)
         review_item_count = _review_item_count(conn, revs, job.result_revision_id)
     return {
@@ -516,6 +818,7 @@ def get_job(request: Request, job_id: uuid.UUID) -> dict[str, Any]:
         "attempt": job.attempt,
         "progress": {"stage": job.stage, "attempt": job.attempt},
         "warnings": warnings,
+        "logs": logs,
         "review_state": review_state,
         "error_code": job.error_code,
         "result_revision_id": str(job.result_revision_id)

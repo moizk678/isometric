@@ -279,6 +279,42 @@ class PersistenceExitChecks(unittest.TestCase):
             ).fetchone()
         self.assertIsNotNone(row)
 
+    def test_job_logs_append_and_list_order(self) -> None:
+        jobs = JobRepository()
+        job_id = uuid.uuid4()
+        event_key = f"job-logs-{job_id}"
+        with self.pool.connection() as conn:
+            jobs.create_with_outbox(
+                conn,
+                job_id=job_id,
+                document_id=self.document_id,
+                state="queued",
+                input_hash="in",
+                options_hash="opt",
+                pipeline_version="0",
+                profile_version="piping_isometric",
+                event_key=event_key,
+            )
+            jobs.append_job_log(
+                conn,
+                job_id=job_id,
+                stage="normalize_page",
+                message="Starting normalize_page",
+            )
+            jobs.append_job_log(
+                conn,
+                job_id=job_id,
+                stage="normalize_page",
+                message="Finished normalize_page",
+                detail={"blur_score": 1.2},
+            )
+            conn.commit()
+        with self.pool.connection() as conn:
+            logs = jobs.list_job_logs(conn, job_id)
+        self.assertEqual(len(logs), 2)
+        self.assertEqual(logs[0].message, "Starting normalize_page")
+        self.assertEqual(logs[1].detail.get("blur_score"), 1.2)
+
     def test_reconciler_finds_orphan(self) -> None:
         scene = FIXTURE_PATH.read_bytes()
         orphan_key = "orphan/unreferenced.json"
@@ -356,6 +392,44 @@ class PersistenceExitChecks(unittest.TestCase):
         self.assertEqual(rows[0]["issue_key"], issue_key)
         self.assertEqual(rows[1]["issue_key"], issue_key)
         self.assertEqual(rows[1]["revision_id"], second.revision_id)
+
+    def test_publish_without_advancing_current(self) -> None:
+        scene = FIXTURE_PATH.read_bytes()
+        publisher = RevisionPublisher(self.store)
+        with self.pool.connection() as conn:
+            first = publisher.publish(
+                conn,
+                document_id=self.document_id,
+                expected_parent_revision_id=None,
+                schema_version="1.0",
+                scene_bytes=scene,
+                author_type="human",
+                review_state="ready",
+                validation_status="valid",
+                exports=[],
+            )
+            conn.commit()
+        with self.pool.connection() as conn:
+            doc = DocumentRepository().get(conn, self.document_id)
+            self.assertEqual(doc.current_revision_id, first.revision_id)
+        with self.pool.connection() as conn:
+            candidate = publisher.publish(
+                conn,
+                document_id=self.document_id,
+                expected_parent_revision_id=first.revision_id,
+                schema_version="1.0",
+                scene_bytes=scene,
+                author_type="machine",
+                review_state="review_required",
+                validation_status="valid",
+                exports=[],
+                advance_current_revision=False,
+            )
+            conn.commit()
+        with self.pool.connection() as conn:
+            doc = DocumentRepository().get(conn, self.document_id)
+            self.assertEqual(doc.current_revision_id, first.revision_id)
+            self.assertNotEqual(candidate.revision_id, first.revision_id)
 
 
 if __name__ == "__main__":

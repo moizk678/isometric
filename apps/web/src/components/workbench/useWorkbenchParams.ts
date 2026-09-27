@@ -27,5 +27,19 @@ export function useWorkbenchParams() {
     [router, pathname, query],
   );
 
-  return { objectId, revisionParam, setObjectId };
+  const setRevisionId = useCallback(
+    (revisionId: string | null) => {
+      const next = new URLSearchParams(query);
+      if (revisionId) {
+        next.set('revision', revisionId);
+      } else {
+        next.delete('revision');
+      }
+      const nextQuery = next.toString();
+      router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
+    },
+    [router, pathname, query],
+  );
+
+  return { objectId, revisionParam, setObjectId, setRevisionId };
 }

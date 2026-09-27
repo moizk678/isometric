@@ -24,6 +24,15 @@ Individual checks:
 
 `./scripts/check` also runs Ruff lint and format checks. GitHub Actions runs the same setup and check scripts on `main`. The Git remote is `https://github.com/moizk678/isometric.git`; hosted CI run [36176905064](https://github.com/moizk678/isometric/actions/runs/36176905064) passed on commit `eaf84d8` (Check workflow).
 
+## Run locally
+
+After setup and migrations (see [web app](docs/web.md) and [upload and jobs](docs/upload-and-jobs.md)), use two terminals from the repo root:
+
+```sh
+pnpm dev:api   # FastAPI on http://localhost:8000  (or: ./scripts/run-api)
+pnpm dev:web   # Next.js on http://localhost:3000  (or: ./scripts/run-web)
+```
+
 ## Layout and data
 
 The [DrawingScene contract](docs/scene-contract.md) documents coordinate spaces, invariants, issue codes, and schema tooling for Run 01. The [SVG renderer](docs/svg-renderer.md) documents deterministic export, preview rasterization, symbol IDs, and golden checks for Run 02.
@@ -32,6 +41,6 @@ The [persistence layer](docs/persistence.md) documents PostgreSQL migrations, ar
 
 The [upload and jobs API](docs/upload-and-jobs.md) documents multipart upload, job polling, and the fixture worker for Run 04.
 
-`apps/web` is the future Next.js workbench; `services/api` and `services/worker` are future Python services; `packages/pipeline` and `packages/evaluation` hold shared conversion and evidence code. `profiles`, `supabase/migrations`, and `infra/local` are reserved for their later bounded runs. No placeholder service currently listens on a port.
+`apps/web` is the Next.js workbench; `services/api` and `services/worker` are the Python API and job worker; `packages/pipeline` and `packages/evaluation` hold shared conversion and evidence code. `profiles`, `supabase/migrations`, and `infra/local` support configuration and persistence. Local dev serves the API on port **8000** and the web app on **3000** (`pnpm dev:api` / `pnpm dev:web`).
 
 The [dataset contract](packages/evaluation/datasets/README.md), [labeling rules](packages/evaluation/datasets/LABELING_GUIDE.md), and [metric definitions](packages/evaluation/datasets/METRICS.md) guide future evaluation. Four tiny images in `packages/evaluation/fixtures/synthetic` are generated contract fixtures, never real-sketch accuracy evidence. The [data inventory](docs/DATA_INVENTORY.md) records two **unlabeled** real samples kept privately and out of Git. Do not commit `.private/`, source crops, secrets, or real drawings.

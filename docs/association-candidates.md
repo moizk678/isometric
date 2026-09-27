@@ -8,7 +8,7 @@ Stage `associate_markup` runs in **page pixel space** after Run 12 `classify_sym
 |---|---|---|---|
 | `associate_markup` | `associate_markup@1.0.0` | `documents/{id}/association-candidates.json` | `jobs/{jobId}/stages/associate_markup/{hash}/overlay.png` |
 
-Worker order: `normalize_page` → `separate_masks` → `detect_regions` → `extract_centerlines` → `fit_primitives` → `snap_primitives` → `infer_topology` → `transcribe_regions` → `classify_symbol_regions` → **`associate_markup`** → `fixture_process` (fixture scene publication unchanged).
+Worker order: `normalize_page` → `separate_masks` → `detect_regions` → `extract_centerlines` → `fit_primitives` → `snap_primitives` → `infer_topology` → `transcribe_regions` → `classify_symbol_regions` → **`associate_markup`** → **`assemble_scene`** (`fixture_process` when `ISOMETRIC_WORKER_FIXTURE_ONLY=1`).
 
 ## Inputs
 

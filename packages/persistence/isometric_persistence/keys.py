@@ -17,6 +17,10 @@ def document_page_key(document_id: uuid.UUID) -> str:
     return f"documents/{document_id}/page.png"
 
 
+def document_reading_key(document_id: uuid.UUID, job_id: uuid.UUID) -> str:
+    return f"documents/{document_id}/readings/{job_id}.json"
+
+
 def document_normalize_metadata_key(document_id: uuid.UUID) -> str:
     return f"documents/{document_id}/normalize.json"
 
@@ -75,6 +79,14 @@ def document_crop_key(document_id: uuid.UUID, crop_id: str) -> str:
 
 def job_stage_artifact_key(job_id: uuid.UUID, stage: str, content_hash: str) -> str:
     return f"jobs/{job_id}/stages/{stage}/{content_hash}"
+
+
+def job_pipeline_manifest_key(job_id: uuid.UUID) -> str:
+    return f"jobs/{job_id}/pipeline-manifest.json"
+
+
+def document_trace_key(document_id: uuid.UUID) -> str:
+    return f"documents/{document_id}/trace.svg"
 
 
 def revision_scene_key(document_id: uuid.UUID, revision_id: uuid.UUID) -> str:
