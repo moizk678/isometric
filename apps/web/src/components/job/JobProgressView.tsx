@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { cancelJob, isTerminalJobState, jobErrorMessage } from '@/api/jobs';
 import { JobLogPanel } from '@/components/job/JobLogPanel';
 import { useJobPolling } from '@/components/job/useJobPolling';
+import { ProcessingTimeline } from '@/components/job/ProcessingTimeline';
 import { stageLabel } from '@/components/job/stageLabels';
 import { parseJobState } from '@/components/documents/parseJobState';
 import { parseReviewState } from '@/components/documents/parseReviewState';
@@ -91,21 +92,25 @@ export function JobProgressView({ jobId }: JobProgressViewProps) {
           {reviewState ? <ReviewStateBadge state={reviewState} /> : null}
         </div>
 
-        {!terminal ? (
-          <>
-            <p className="m-0 text-sm leading-5 text-ink-primary">
-              Stage: <span className="break-words">{stageDisplay}</span> · Attempt {attempt}
-            </p>
-            <ProgressBar label="Processing" />
-            <JobLogPanel logs={job.logs} />
-          </>
-        ) : (
-          <p className="m-0 text-sm leading-5 text-ink-secondary">
-            Final stage: <span className="break-words text-ink-primary">{stageDisplay}</span> · Attempt {attempt}
-          </p>
-        )}
+        <ProcessingTimeline
+          stage={stageName}
+          attempt={attempt}
+          terminalSuccess={job.state === 'succeeded'}
+        />
 
-        {terminal && job.logs.length > 0 ? <JobLogPanel logs={job.logs} /> : null}
+        {!terminal || job.logs.length > 0 ? (
+          <div className="space-y-2">
+            <p className="m-0 text-xs font-medium leading-4 text-ink-muted">Activity log</p>
+            <JobLogPanel logs={job.logs} />
+          </div>
+        ) : null}
+
+        {terminal && job.state !== 'succeeded' ? (
+          <p className="m-0 text-sm leading-5 text-ink-secondary">
+            Final stage: <span className="break-words text-ink-primary">{stageDisplay}</span>
+            {attempt > 1 ? ` · Attempt ${attempt}` : null}
+          </p>
+        ) : null}
 
         {stale && !terminal ? (
           <div

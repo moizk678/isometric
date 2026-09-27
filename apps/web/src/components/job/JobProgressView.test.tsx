@@ -35,7 +35,7 @@ describe('JobProgressView', () => {
 
     render(<JobProgressView jobId="job-stale" />);
     await waitFor(() => {
-      expect(screen.getByText(/Stage:/)).toBeTruthy();
+      expect(screen.getByTestId('processing-timeline')).toBeTruthy();
     });
 
     await act(async () => {
@@ -69,7 +69,7 @@ describe('JobProgressView', () => {
 
     render(<JobProgressView jobId="job-flaky" />);
     await waitFor(() => {
-      expect(screen.getByText(/Stage:/)).toBeTruthy();
+      expect(screen.getByTestId('processing-timeline')).toBeTruthy();
     });
 
     await act(async () => {
