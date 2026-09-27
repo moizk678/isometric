@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+export PYTHONPATH="services/api:services/worker:packages/pipeline:packages/persistence"
+export ARTIFACT_ROOT="${ARTIFACT_ROOT:-/data/artifacts}"
+mkdir -p "$ARTIFACT_ROOT"
+
+worker_loop() {
+  while true; do
+    python3 - <<'PY' || echo "worker loop: pass failed (will retry)" >&2
+import os
+import traceback
+from pathlib import Path
+
+from isometric_persistence.artifacts import FilesystemArtifactStore
+from isometric_persistence.config import load_database_settings
+from isometric_persistence.db import DatabasePool
+from isometric_worker import load_queue, run_once
+
+try:
+    pool = DatabasePool(load_database_settings())
+    store = FilesystemArtifactStore(
+        Path(os.environ.get("ARTIFACT_ROOT", "/data/artifacts"))
+    )
+    count = run_once(pool, store, load_queue())
+    if count:
+        print(f"worker loop: processed {count} job(s)", flush=True)
+    pool.close()
+except Exception:
+    traceback.print_exc()
+PY
+    sleep 8
+  done
+}
+
+worker_loop &
+exec python3 -m uvicorn isometric_api.app:app --host 0.0.0.0 --port "${PORT:-8000}"

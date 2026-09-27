@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Apply supabase/migrations during deploy (non-interactive; no second-pass assertion).
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+if [[ -z "${SUPABASE_DATABASE_URL:-}" && -z "${SUPABASE_DEVELOPMENT_DATABASE_URL:-}" ]]; then
+  echo "SUPABASE_DATABASE_URL is required" >&2
+  exit 1
+fi
+
+PYTHONPATH=packages/persistence python3 - <<'PY'
+from isometric_persistence.config import load_database_settings
+from isometric_persistence.db import DatabasePool
+from isometric_persistence.migrate import apply_migrations
+
+settings = load_database_settings()
+pool = DatabasePool(settings)
+with pool.connection() as conn:
+    applied = apply_migrations(conn)
+    conn.commit()
+print(f"migrations ok ({len(applied)} applied)")
+pool.close()
+PY

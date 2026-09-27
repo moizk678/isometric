@@ -35,6 +35,11 @@ def create_app() -> FastAPI:
     queue = load_queue()
     app = FastAPI(title="Isometric API", version="0.1.0")
     app.state.runtime = AppState(settings=settings, pool=pool, store=store, queue=queue)
+
+    @app.get("/health")
+    def health() -> dict[str, str]:
+        return {"status": "ok"}
+
     app.include_router(router)
 
     base_openapi = app.openapi

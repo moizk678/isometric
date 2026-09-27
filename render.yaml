@@ -1,0 +1,30 @@
+# Render Blueprint — isometric API (see docs/deployment.md).
+services:
+  - type: web
+    name: isometric-api
+    runtime: python
+    region: singapore
+    plan: standard
+    repo: https://github.com/moizk678/isometric
+    branch: main
+    buildCommand: pip install -r requirements-dev.lock && chmod +x scripts/migrate-deploy scripts/render-start && ./scripts/migrate-deploy
+    startCommand: ./scripts/render-start
+    healthCheckPath: /health
+    autoDeploy: true
+    disk:
+      name: isometric-artifacts
+      mountPath: /data
+      sizeGB: 10
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.12"
+      - key: ARTIFACT_ROOT
+        value: /data/artifacts
+      - key: SKIP_INLINE_WORKER
+        value: "1"
+      - key: VISION_ENABLED
+        value: "false"
+      - key: REQUIRE_OWNER_HEADER
+        value: "true"
+      - key: SUPABASE_DATABASE_URL
+        sync: false
