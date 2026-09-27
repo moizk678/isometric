@@ -67,7 +67,7 @@ Do not commit database passwords or API keys.
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://bhezwfoifroyidfwdvcy.supabase.co` |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase publishable key |
 
-Production URL (team): `https://isometric-moiz-khans-projects-5bc55b0b.vercel.app`
+Production URLs: `https://isometric-olive.vercel.app` (alias), `https://isometric-moiz-khans-projects-5bc55b0b.vercel.app`
 
 ## Migrations
 
