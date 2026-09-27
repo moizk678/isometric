@@ -42,6 +42,7 @@ export function useDrawingReading(documentId: string): DrawingReadingState {
   const [reading, setReading] = useState<DrawingReadingResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<ApiError | null>(null);
+  const [pollGeneration, setPollGeneration] = useState(0);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const readingRef = useRef<DrawingReadingResponse | null>(null);
 
@@ -70,6 +71,7 @@ export function useDrawingReading(documentId: string): DrawingReadingState {
   const retry = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setReading({ status: 'pending' });
     try {
       await retryDrawingReading(documentId);
     } catch (err) {
@@ -79,8 +81,8 @@ export function useDrawingReading(documentId: string): DrawingReadingState {
       setLoading(false);
       return;
     }
-    await fetchReading();
-  }, [documentId, fetchReading]);
+    setPollGeneration((value) => value + 1);
+  }, [documentId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -123,7 +125,7 @@ export function useDrawingReading(documentId: string): DrawingReadingState {
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [fetchReading]);
+  }, [fetchReading, pollGeneration]);
 
   return { reading, loading, error, refresh, retry };
 }

@@ -41,6 +41,27 @@ def _parse_json_text(text: str) -> object:
     return json.loads(stripped)
 
 
+def _sanitize_groups_payload(payload: dict[str, object]) -> dict[str, object]:
+    groups = payload.get("groups")
+    if not isinstance(groups, list):
+        return payload
+    for group in groups:
+        if not isinstance(group, dict):
+            continue
+        rows = group.get("rows")
+        if not isinstance(rows, list):
+            continue
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            location = row.get("location")
+            reading = row.get("reading")
+            if not (isinstance(location, str) and location.strip()):
+                fallback = reading.strip() if isinstance(reading, str) else ""
+                row["location"] = fallback[:80] if fallback else "drawing"
+    return payload
+
+
 def _try_validate_provider_text(text: str | None) -> DrawingReadingTable | None:
     if text is None or not text.strip():
         return None
@@ -50,6 +71,7 @@ def _try_validate_provider_text(text: str | None) -> DrawingReadingTable | None:
         return None
     if not isinstance(payload, dict) or "groups" not in payload:
         return None
+    payload = _sanitize_groups_payload(payload)
     try:
         return validate_table({"groups": payload["groups"]})
     except (DrawingReadingValidationError, AttributeError, TypeError):

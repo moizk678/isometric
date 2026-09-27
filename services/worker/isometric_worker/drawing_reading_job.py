@@ -10,7 +10,12 @@ from datetime import UTC, datetime, timedelta
 from isometric_persistence.artifacts import ArtifactStore
 from isometric_persistence.db import DatabasePool
 from isometric_persistence.errors import PersistenceError
-from isometric_persistence.keys import document_page_key, document_reading_key
+from isometric_persistence.keys import (
+    document_display_key,
+    document_original_key,
+    document_page_key,
+    document_reading_key,
+)
 from isometric_persistence.repositories.jobs import JobRepository, JobRow
 
 from .drawing_reading.reader import (
@@ -26,6 +31,21 @@ from .queue import JobQueue
 logger = logging.getLogger(__name__)
 
 PAGE_WAIT_MAX = timedelta(minutes=10)
+
+
+def _load_reading_image_bytes(
+    store: ArtifactStore, document_id: uuid.UUID
+) -> bytes | None:
+    for key in (
+        document_page_key(document_id),
+        document_display_key(document_id),
+        document_original_key(document_id),
+    ):
+        try:
+            return store.read(key)
+        except (FileNotFoundError, PersistenceError, OSError):
+            continue
+    return None
 
 
 def _reading_job_too_old(job: JobRow) -> bool:
@@ -49,12 +69,7 @@ def process_drawing_reading_job(
     jobs = JobRepository()
     job_id = job.id
     document_id = job.document_id
-    page_key = document_page_key(document_id)
-    page_bytes: bytes | None = None
-    try:
-        page_bytes = store.read(page_key)
-    except (FileNotFoundError, PersistenceError):
-        page_bytes = None
+    page_bytes = _load_reading_image_bytes(store, document_id)
 
     if page_bytes is None:
         with pool.connection() as conn:
